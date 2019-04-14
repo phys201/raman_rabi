@@ -13,4 +13,5 @@ setup(name='raman_rabi',
       install_requires=[
           'numpy',
       ],
-      zip_safe=False)
+      zip_safe=False,
+      include_package_data=True)
