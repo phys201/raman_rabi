@@ -1,4 +1,4 @@
 import numpy
 
-def test():
+def hello():
     return '>>> Hello from raman_rabi!'
