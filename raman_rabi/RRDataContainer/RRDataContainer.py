@@ -13,7 +13,7 @@ class RRDataContainer:
     """
     def __init__(self, filepath):        
         self.filename = filepath
-        self.dataframe = pd.read_csv(filepath, delimiter="\t", header=None)
+        self.dataframe = pd.read_csv(filepath, encoding='utf-8', delimiter="\t", header=None)
         
     def get_df(self):
         """

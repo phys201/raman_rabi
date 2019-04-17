@@ -28,4 +28,4 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
     #we make data into unit normal distribution, uncertainty sigma of shot noise = sqrt(mu)
     z_data = (mN1_data - mu)/np.sqrt(mu)
     likelihood = (2*np.pi)**(-len(mN1_data)/2) * np.exp(-np.sum(z_data**2)/2.)
-    return likelihood
+    return likelihood,mu
