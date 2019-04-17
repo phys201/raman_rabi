@@ -18,6 +18,10 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
         Gammadeph: Raman-Rabi dephasing time-scale parameter (float)
         dataN (optional): number of experiment repititions summed (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
+
+    Returns:
+        likelihood (float): the value of the likelihood function with these parameters
+        mu (array): the values of the model given these parameters
     """
     mN1_size = mN1_data.get_df().shape[0]
     mN1_data = scale_factor*np.sum(mN1_data.get_df()) / (dataN*mN1_size)
