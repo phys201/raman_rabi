@@ -17,7 +17,7 @@ class TestTesting(TestCase):
         
 class TestRR_IO(TestCase):
     def test_data_io(self):
-        self.assertTrue(isinstance(RRData, RRDataContainer.RRDataContainer))
+        self.assertTrue(isinstance(RRData, RRDataContainer))
 
 class TestRRDataContainer(TestCase):
     def test_correct_dimensions(self):
