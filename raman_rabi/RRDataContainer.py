@@ -4,6 +4,11 @@ __copyright__ = "Copyright 2019"
 __version__ = "1.0.0"
 __status__ = "Development"
 
+"""
+This submodule contains the definition of the RRDataContainer class,
+which holds Raman-Rabi readout data and metadata.
+"""
+
 import pandas as pd
 class RRDataContainer:
     """A class that puts data into a pandas data frame object.
@@ -16,11 +21,11 @@ class RRDataContainer:
         The constructor for an RRDataContainer object
 
         Parameters:
-            filepath (string): the path to the data file, relative to the working directory
+            filepath: the path to the data file, relative to the working directory (string)
 
         Outputs:
-            self (RRDataContainer): an RRDataContainer object, which contains a Pandas
-                DataFrame holding the data loaded from the file
+            self: an RRDataContainer object, which contains a Pandas
+                DataFrame holding the data loaded from the file (RRDataContainer)
         """
         self.filename = filepath
         self.dataframe = pd.read_csv(filepath, encoding='utf-8', delimiter="\t", header=None)
@@ -33,6 +38,6 @@ class RRDataContainer:
             none
 
         Outputs:
-            dataframe (Pandas DataFrame): a Pandas DataFrame holding the data
+            dataframe: a Pandas DataFrame holding the data (DataFrame)
         """
         return self.dataframe
