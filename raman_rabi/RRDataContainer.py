@@ -28,7 +28,7 @@ class RRDataContainer:
                 DataFrame holding the data loaded from the file (RRDataContainer)
         """
         self.filename = filepath
-        self.dataframe = pd.read_csv(filepath, encoding='utf-8', delimiter="\t", header=None)
+        self._dataframe = pd.read_csv(filepath, encoding='utf-8', delimiter="\t", header=None)
         
     def get_df(self):
         """
@@ -40,4 +40,4 @@ class RRDataContainer:
         Outputs:
             dataframe: a Pandas DataFrame holding the data (DataFrame)
         """
-        return self.dataframe
+        return self._dataframe
