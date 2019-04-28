@@ -93,6 +93,38 @@ def unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dat
     z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
     loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
     return loglikelihood
+
+def laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
+    """
+    This function calculates the unbinned log-likelihood of model 1 for N data points INCLUDING N parameters a_i of laser skew strength (a between zero and infinity)
+
+    Parameters:
+        theta: the model parameters to use in this log-posterior calculation (array)
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        dataN (optional): number of experiment repititions summed (int)
+        scale_factor (optional): nuclear spin signal multiplier (float)
+
+    Returns:
+        loglikelihood: the log-likelihood of the data given the parameters in theta (float)
+    """
+    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
+    a_vec = theta[6:len(theta)]
+    a_vec.shape = (len(a_vec), 1)
+
+    if fromcsv:
+        mN1_data = mN1_data.get_df().values
+    else:
+        mN1_data = mN1_data.values
+    mN1_data = scale_factor*mN1_data/dataN
+    time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
+    mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
+    mu_mat = mu_mat*a_vec
+    z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
+    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
+    return loglikelihood
     
 
 def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN=10, scale_factor=100*100):
@@ -151,6 +183,23 @@ def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_
     """
     return log_prior(theta) + unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
 
+def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
+    """
+    The log posterior for the Raman-Rabi model, using the unbinned log-likelihood WITH LASER SKEW PARAMETER a.
+
+    Parameters:
+        theta: the model parameters to use in this log-posterior calculation (array)
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        dataN (optional): number of experiment repititions summed (int)
+        scale_factor (optional): nuclear spin signal multiplier (float)
+
+    Returns:
+        log-posterior: the value of the log-posterior for the data given the parameters in theta
+    """
+    return log_prior(theta) + laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
+
 
 def Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100, nwalkers=20, nsteps=50):
     """
@@ -175,6 +224,35 @@ def Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_fact
     ndim = len(guesses)
     starting_positions = [guesses + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, 
+                                args=(mN1_data, time_min, time_max, fromcsv))
+    sampler.run_mcmc(starting_positions, nsteps)
+    return sampler
+
+def laserskew_Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100, nwalkers=20, nsteps=50):
+    """
+    This function samples the posterior using MCMC WITH LASER SKEW PARAMETER a.
+
+    Parameters:
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        guesses: the initial guesses for the parameters of the model (array of floats)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        dataN (optional): number of experiment repititions summed (int)
+        scale_factor (optional): nuclear spin signal multiplier (float)
+        nwalkers (optional): the number of walkers with which to sample (int)
+        nsteps (optional): the number of steps each walker should take (int)
+
+    Returns:
+       sampler: the sampler object which now contains the samples taken by nwalkers
+           walkers over nsteps steps
+    """
+    BG, Ap, Gammap, Ah, Omegah, Gammadeph = guesses[0:6]
+    a_vec = guesses[5:len(guesses)]
+
+    ndim = len(guesses)
+    starting_positions = [guesses + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, laserskew_log_posterior, 
                                 args=(mN1_data, time_min, time_max, fromcsv))
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
