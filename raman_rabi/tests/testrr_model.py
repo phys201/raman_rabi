@@ -63,10 +63,14 @@ class TestRR_MODEL(TestCase):
     def test_laserskew_parameter_estimation(self):
         # previously estimated parameters:
         data_length = 90
-        theta = np.concatenate( (np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871]), np.zeros(data_length)+1), axis=0)
+        theta = np.concatenate( (np.array([6.10, 16.6881, 
+                                        1/63.8806, 5.01886, 
+                                        -np.pi/8.77273, 1/8.5871]), 
+                                    np.zeros(data_length)+1), axis=0)
 
         # generate some data
-        test_data = rr_model.generate_test_data(theta[0:6], 161, data_length, 0, 40)
+        test_data = rr_model.generate_test_data(theta[0:6], 161, 
+                                                data_length, 0, 40)
 
         # run MCMC on the test data and see if it's pretty close to the original theta
         guesses = theta
@@ -74,15 +78,30 @@ class TestRR_MODEL(TestCase):
         numwalkers = 200
         numsteps = 500
         np.random.seed(0)
-        test_samples = rr_model.laserskew_Walkers(test_data, guesses, 0, 40, False, dataN=10, scale_factor=100*100, nwalkers=numwalkers, nsteps=numsteps)
-        burn_in_time = 100
+        test_samples = rr_model.laserskew_Walkers(test_data, guesses, 
+                                                  0, 40, False, dataN=10, 
+                                                  scale_factor=100*100, 
+                                                  nwalkers=numwalkers, 
+                                                  nsteps=numsteps)
+        burn_in_time = 200
         samples = test_samples.chain[:,burn_in_time:,:]
         traces = samples.reshape(-1, numdim).T
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 'Gammap': traces[2], 'Ah': traces[3], 'Omegah': traces[4], 'Gammadeph': traces[5]})
+        parameter_samples = pd.DataFrame({'BG': traces[0], 
+                                          'Ap': traces[1], 
+                                          'Gammap': traces[2], 
+                                          'Ah': traces[3], 
+                                          'Omegah': traces[4], 
+                                          'Gammadeph': traces[5] })
+        laserskew_samples = pd.DataFrame(traces[6:].T)
         MAP = parameter_samples.quantile([0.50], axis=0)
+        laserskew_MAP = laserskew_samples.quantile([0.50],axis=0)
         self.assertTrue(abs((MAP['BG'].values[0]-guesses[0])/guesses[0]) < 0.2)
         self.assertTrue(abs((MAP['Ap'].values[0]-guesses[1])/guesses[1]) < 0.2)
         self.assertTrue(abs((MAP['Gammap'].values[0]-guesses[2])/guesses[2]) < 0.2)
         self.assertTrue(abs((MAP['Ah'].values[0]-guesses[3])/guesses[3]) < 0.2)
         self.assertTrue(abs((MAP['Omegah'].values[0]-guesses[4])/guesses[4]) < 0.2)
         self.assertTrue(abs((MAP['Gammadeph'].values[0]-guesses[5])/guesses[5]) < 0.2)
+        laserskew_columns = list(laserskew_MAP)
+        for column in laserskew_columns:
+            self.assertTrue(abs((laserskew_MAP[column].values[0]-guesses[6+column])/guesses[6+column]) < 0.2)
+
