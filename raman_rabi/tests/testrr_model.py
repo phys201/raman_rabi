@@ -83,6 +83,24 @@ class TestRR_MODEL(TestCase):
         logprior = rr_model.log_prior(theta)
         self.assertTrue(logprior == 0)
 
+    def test_log_prior_uniform(self):
+        # this time, use a (proper) uniform prior for one of the parameters
+        # and make sure we get -inf when we plug in an out-of-bounds value
+        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, 
+            -np.pi/8.77273, 1/8.5871])
+        priors = np.array([['flat'],
+                           ['uniform',10,18],
+                           ['flat'],
+                           ['flat'],
+                           ['flat'],
+                           ['flat']])
+        wrong_theta = theta
+        wrong_theta[1] = 9
+                           
+        logprior = rr_model.log_prior(wrong_theta,priors)
+        self.assertTrue(logprior == -np.inf)
+
+
     def test_log_posterior(self):
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
         time_min = 0
