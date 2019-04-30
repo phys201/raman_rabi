@@ -21,7 +21,7 @@ class TestRR_MODEL(TestCase):
         time_max = 40
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
         likelihood = rr_model.likelihood_mN1(RRData,time_min,time_max,*theta)[0]
-        self.assertTrue(likelihood == 3.2035056889734263e-74)
+        self.assertAlmostEqual(likelihood,3.2035056889734263e-74)
 
 
     def test_likelihood_ratio(self):
