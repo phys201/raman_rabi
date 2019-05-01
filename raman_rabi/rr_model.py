@@ -152,18 +152,37 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN=10, 
     return pd.DataFrame(test_data)
 
 
-def log_prior(theta):
+def log_prior(theta,priors=None):
     """
     The log prior for all parameters in the Raman-Rabi model. All parameters
     have improper flat priors.
 
     Parameters:
         theta (array): a list of the input parameters for the model
+        priors (optional): a list of tuples (all ('flat') by default) specifying
+            what type of prior to use for each parameter, and the parameters of
+            that prior. For 'uniform' these consist of the lower and upper limits,
+            respectively.
 
     Returns:
-        0 (int): the value of the log of an improper flat prior
+        log_prior (float): the value of the prior, either 0 or -np.inf depending
+            on priors and theta
     """
-    return 0
+    if priors is None:
+        priors=np.repeat([['flat']],len(theta),axis=0)
+    logprior_arr = []
+    for param, prior in zip(theta,priors):
+        if prior[0] == 'flat':
+            logprior_arr.append(0)
+        elif prior[0] == 'uniform':
+            if (param <= prior[1]) or (param >= prior[2]):
+                return -np.inf
+            else:
+                logprior_arr.append(0)
+        else:
+            print('>>> Unknown prior specified')
+            
+    return np.sum(logprior_arr)
 
 
 def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
