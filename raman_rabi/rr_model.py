@@ -121,13 +121,26 @@ def laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fr
     mN1_data = scale_factor*mN1_data/dataN
     time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
-    mu_mat = mu_mat*a_vec
+    #print("mu_mat before multiplying:")
+    #print(mu_mat)
+    #print("mu_mat < 0 before multiplying:")
+    #print(mu_mat[mu_mat < 0])
+    #print("a_vec before multiplying:")
+    #print(a_vec)
+    #print("a_vec < 0 before multiplying:")
+    #print(a_vec[a_vec<0])
+    #mu_mat = mu_mat*a_vec
+    mu_mat = np.multiply(mu_mat,a_vec)
+    #print("mu_mat looks like")
+    #print(mu_mat)
+    #print("mu_mat values < 0:")
+    #print(mu_mat[mu_mat < 0])
     z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
     loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
     return loglikelihood
     
 
-def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN=10, scale_factor=100*100):
+def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN=10, scale_factor=100*100, include_laserskews=False):
     """
     This function wraps the ideal model function, adds Gaussian noise to the data, and returns
     a test dataset.
@@ -140,14 +153,30 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN=10, 
         time_max: maximum Raman-Rabi pulse time (float)
         dataN (optional): number of experiment repititions summed (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
+        include_laserskews (optional): does theta include laser skew parameters? (boolean)
 
     Returns:
         test_data: a pandas DataFrame containing the test data (DataFrame)
     """
-    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta
+    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
+    if include_laserskews:
+        laserskews = theta[6:]
     time, mu = ideal_model(timesteps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
+    #print(mu.shape)
+    #print("mu looks like")
+    #print(mu)
     uncertainty = np.random.normal(scale=np.sqrt(mu), size=(samples, timesteps))
+
     mu_mat = np.tile(mu, (samples, 1))
+    #print("mu_mat shape is",mu_mat.shape)
+    #print("mu_mat looks like")
+    #print(mu_mat)
+    #print("laserskews shape is",laserskews.shape)
+    if include_laserskews:
+        mu_mat = np.multiply(mu_mat,laserskews[:,None])
+    #print("laserskewed shape is",laserskewed.shape)
+    #print("laserskewed looks like")
+    #print(laserskewed)
     test_data = dataN*(mu_mat + uncertainty)/scale_factor
     return pd.DataFrame(test_data)
 
@@ -217,7 +246,12 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=
     Returns:
         log-posterior: the value of the log-posterior for the data given the parameters in theta
     """
-    return log_prior(theta) + laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
+    loglikelihood = laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
+    logprior = log_prior(theta)
+    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
+        return -np.inf
+    else:
+        return log_prior(theta) + laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
 
 
 def Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100, nwalkers=20, nsteps=50):
@@ -267,7 +301,7 @@ def laserskew_Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, 
            walkers over nsteps steps
     """
     BG, Ap, Gammap, Ah, Omegah, Gammadeph = guesses[0:6]
-    a_vec = guesses[5:len(guesses)]
+    a_vec = guesses[6:]
 
     ndim = len(guesses)
     starting_positions = [guesses + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
