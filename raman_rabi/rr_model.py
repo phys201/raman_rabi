@@ -212,6 +212,7 @@ def log_prior(theta,priors=None):
             print('>>> Unknown prior specified')
             
     return np.sum(logprior_arr)
+    #return 0
 
 
 def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
@@ -246,12 +247,15 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=
     Returns:
         log-posterior: the value of the log-posterior for the data given the parameters in theta
     """
-    loglikelihood = laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
-    logprior = log_prior(theta)
-    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
+
+    if (theta[2] < 0.0) or (theta[5] < 0.0) or (np.any(theta[6:len(theta)] < 0.0)) or (np.any(theta[6:len(theta)] > 1.01)) or (theta[0] < 0.0) or (theta[1] < 0) or (theta[3] < 0): #we do 1.01 because we start one at 1.0 and it gets confused
         return -np.inf
     else:
-        return log_prior(theta) + laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
+        loglikelihood = laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
+        logprior = log_prior(theta)
+        if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
+            return -np.inf
+    return log_prior(theta) + laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
 
 
 def Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100, nwalkers=20, nsteps=50):
@@ -300,11 +304,12 @@ def laserskew_Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, 
        sampler: the sampler object which now contains the samples taken by nwalkers
            walkers over nsteps steps
     """
+    #print('Still Still Working')
     BG, Ap, Gammap, Ah, Omegah, Gammadeph = guesses[0:6]
     a_vec = guesses[6:]
 
     ndim = len(guesses)
-    starting_positions = [guesses + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+    starting_positions = [guesses + 1e-3*np.random.randn(ndim) for i in range(nwalkers)]
     sampler = emcee.EnsembleSampler(nwalkers, ndim, laserskew_log_posterior, 
                                 args=(mN1_data, time_min, time_max, fromcsv))
     sampler.run_mcmc(starting_positions, nsteps)
