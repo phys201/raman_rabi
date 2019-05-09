@@ -11,7 +11,7 @@ setup(name='raman_rabi',
       test_suite='nose.collector',
       tests_require=['nose'],
       install_requires=[
-          'numpy', 'pandas'
+          'numpy', 'pandas', 'seaborn', 'emcee'
       ],
       zip_safe=False,
       include_package_data=True)
