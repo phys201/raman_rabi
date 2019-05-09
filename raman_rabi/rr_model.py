@@ -3,10 +3,14 @@ import numpy as np
 from numpy import random
 import pandas as pd
 import emcee
+import matplotlib.pyplot as plt
 
 """
 This submodule provides the generative model (Model 1) for the Raman-Rabi data as well as
 an MCMC sampler complete with log-prior and log-posterior functions for Model 1.
+
+Note: theta is a list of the input parameters for the model in the following form
+    'B_G','A_p', 'Gamma_p' , 'A_h', 'Omega_h', 'Gamma_deph','Skew'
 """
 
 def ideal_model(steps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph):
@@ -57,13 +61,31 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
     """
     mN1_size = mN1_data.get_df().shape[0]
     mN1_data = scale_factor*np.sum(mN1_data.get_df()) / (dataN*mN1_size)
-
     time, mu = ideal_model(len(mN1_data), time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
 
     #we make data into unit normal distribution, uncertainty sigma of shot noise = sqrt(mu)
     z_data = (mN1_data - mu)/np.sqrt(mu)
     likelihood = (2*np.pi)**(-len(mN1_data)/2) * np.exp(-np.sum(z_data**2)/2.)
     return likelihood, mu
+
+def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = False):
+    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
+    if withlaserskew:
+        a_vec = theta[6:len(theta)]
+        a_vec.shape = (len(a_vec), 1)
+    
+    if fromcsv:
+        mN1_data = mN1_data.get_df().values
+    else:
+        mN1_data = mN1_data.values
+    mN1_data = scale_factor*mN1_data/dataN
+    time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
+    mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
+    if withlaserskew:
+        mu_mat = np.multiply(mu_mat,a_vec)
+    z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
+    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
+    return loglikelihood
 
 
 def unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
@@ -82,16 +104,7 @@ def unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dat
     Returns:
         loglikelihood: the log-likelihood of the data given the parameters in theta (float)
     """
-    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta
-    if fromcsv:
-        mN1_data = mN1_data.get_df().values
-    else:
-        mN1_data = mN1_data.values
-    mN1_data = scale_factor*mN1_data/dataN
-    time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
-    mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
-    z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
-    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
+    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = False)
     return loglikelihood
 
 def laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
@@ -110,33 +123,7 @@ def laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fr
     Returns:
         loglikelihood: the log-likelihood of the data given the parameters in theta (float)
     """
-    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
-    a_vec = theta[6:len(theta)]
-    a_vec.shape = (len(a_vec), 1)
-
-    if fromcsv:
-        mN1_data = mN1_data.get_df().values
-    else:
-        mN1_data = mN1_data.values
-    mN1_data = scale_factor*mN1_data/dataN
-    time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
-    mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
-    #print("mu_mat before multiplying:")
-    #print(mu_mat)
-    #print("mu_mat < 0 before multiplying:")
-    #print(mu_mat[mu_mat < 0])
-    #print("a_vec before multiplying:")
-    #print(a_vec)
-    #print("a_vec < 0 before multiplying:")
-    #print(a_vec[a_vec<0])
-    #mu_mat = mu_mat*a_vec
-    mu_mat = np.multiply(mu_mat,a_vec)
-    #print("mu_mat looks like")
-    #print(mu_mat)
-    #print("mu_mat values < 0:")
-    #print(mu_mat[mu_mat < 0])
-    z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
-    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
+    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = True)
     return loglikelihood
     
 
@@ -162,26 +149,16 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN=10, 
     if include_laserskews:
         laserskews = theta[6:]
     time, mu = ideal_model(timesteps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
-    #print(mu.shape)
-    #print("mu looks like")
-    #print(mu)
     uncertainty = np.random.normal(scale=np.sqrt(mu), size=(samples, timesteps))
 
     mu_mat = np.tile(mu, (samples, 1))
-    #print("mu_mat shape is",mu_mat.shape)
-    #print("mu_mat looks like")
-    #print(mu_mat)
-    #print("laserskews shape is",laserskews.shape)
     if include_laserskews:
         mu_mat = np.multiply(mu_mat,laserskews[:,None])
-    #print("laserskewed shape is",laserskewed.shape)
-    #print("laserskewed looks like")
-    #print(laserskewed)
     test_data = dataN*(mu_mat + uncertainty)/scale_factor
     return pd.DataFrame(test_data)
 
 
-def log_prior(theta,priors=None):
+def log_prior(theta, priors=None):
     """
     The log prior for all parameters in the Raman-Rabi model. All parameters
     have improper flat priors.
@@ -212,7 +189,6 @@ def log_prior(theta,priors=None):
             print('>>> Unknown prior specified')
             
     return np.sum(logprior_arr)
-    #return 0
 
 
 def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100):
@@ -257,6 +233,36 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN=
             return -np.inf
     return log_prior(theta) + laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100)
 
+def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, gaus_var, nwalkers, nsteps, withlaserskew = False):
+    """
+    This function samples the posterior using MCMC.
+
+    Parameters:
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        guesses: the initial guesses for the parameters of the model (array of floats)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        gaus_var: variance of the gaussian that defines the starting positions (float)
+        nwalkers: the number of walkers with which to sample (int)
+        nsteps: the number of steps each walker should take (int)
+        withlaserskew (optional): marks whether to use laserskew functions or not (bool) 
+
+    Returns:
+       sampler: the sampler object which now contains the samples taken by nwalkers
+           walkers over nsteps steps
+    """
+    ndim = len(guesses)
+    starting_positions = [guesses + gaus_var*np.random.randn(ndim) for i in range(nwalkers)]
+    if withlaserskew == False:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, 
+                                args=(mN1_data, time_min, time_max, fromcsv))
+    else:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, laserskew_log_posterior, 
+                                args=(mN1_data, time_min, time_max, fromcsv))
+        
+    sampler.run_mcmc(starting_positions, nsteps)
+    return sampler
 
 def Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100, nwalkers=20, nsteps=50):
     """
@@ -274,16 +280,13 @@ def Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_fact
         nsteps (optional): the number of steps each walker should take (int)
 
     Returns:
-       sampler: the sampler object which now contains the samples taken by nwalkers
+       sampler: the object which now contains the samples taken by nwalkers
            walkers over nsteps steps
     """
-    BG, Ap, Gammap, Ah, Omegah, Gammadeph = guesses
-    ndim = len(guesses)
-    starting_positions = [guesses + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, 
-                                args=(mN1_data, time_min, time_max, fromcsv))
-    sampler.run_mcmc(starting_positions, nsteps)
+    gaus_var = 1e-4
+    sampler = Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, gaus_var, nwalkers, nsteps)
     return sampler
+
 
 def laserskew_Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, scale_factor=100*100, nwalkers=20, nsteps=50):
     """
@@ -301,17 +304,114 @@ def laserskew_Walkers(mN1_data, guesses, time_min, time_max, fromcsv, dataN=10, 
         nsteps (optional): the number of steps each walker should take (int)
 
     Returns:
-       sampler: the sampler object which now contains the samples taken by nwalkers
+       sampler: the object which now contains the samples taken by nwalkers
            walkers over nsteps steps
     """
-    #print('Still Still Working')
-    BG, Ap, Gammap, Ah, Omegah, Gammadeph = guesses[0:6]
-    a_vec = guesses[6:]
-
-    ndim = len(guesses)
-    starting_positions = [guesses + 1e-3*np.random.randn(ndim) for i in range(nwalkers)]
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, laserskew_log_posterior, 
-                                args=(mN1_data, time_min, time_max, fromcsv))
-    sampler.run_mcmc(starting_positions, nsteps)
+    gaus_var = 1e-3
+    sampler = Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, gaus_var, nwalkers, nsteps, withlaserskew = True)
     return sampler
+    
+    
+def sampler_to_dataframe(sampler, withlaserskew = False):
+    """
+    This function transforms sampler into pandas dataframe
+
+    Parameters:
+        sampler: the object which contains the samples (emcee sampler)
+        withlaserskew (optional): marks whether to use laserskew functions or not (bool)
+
+    Returns:
+       df: the pandas data frame object which now contains the samples taken by nwalkers
+           walkers over nsteps steps
+    """
+    panel = pd.Panel(sampler.chain).transpose(2,0,1) # transpose permutes indices of the panel
+    df = panel.to_frame() # transform panel to dataframe
+    df.index.rename(['chain', 'step'], inplace=True)
+    if withlaserskew == False:   
+        df.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd']
+    else:
+        df.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd', 'Skew']
+        
+    return df
+
+def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
+    """
+    This function plots the parameters burnin time
+
+    Parameters:
+        sampler: the object which contains the samples (emcee sampler)
+        nwalkers: the number of walkers with which to sample (int)
+        withlaserskew (optional): marks whether to use laserskew functions or not (bool)
+
+    """
+    df = sampler_to_dataframe(sampler, withlaserskew)
+    plt.figure()
+    plt.plot(np.array([df['BG'].loc[i] for i in range(nwalkers)]).T)
+    plt.title(r'Burn in for $B_G$')
+    plt.show()
+
+    plt.figure()
+    plt.plot(np.array([df['Ap'].loc[i] for i in range(nwalkers)]).T)
+    plt.title(r'Burn in for $A_p$')
+    plt.show()
+
+    plt.figure()
+    plt.plot(np.array([df['Gp'].loc[i] for i in range(nwalkers)]).T)
+    plt.title(r'Burn in for $\Gamma_p$')
+    plt.show()
+
+    plt.figure()
+    plt.plot(np.array([df['Ah'].loc[i] for i in range(nwalkers)]).T)
+    plt.title(r'Burn in for $A_h$')
+    plt.show()
+
+    plt.figure()
+    plt.plot(np.array([df['Oh'].loc[i] for i in range(nwalkers)]).T)
+    plt.title(r'Burn in for $\Omega_h$')
+    plt.show()
+    
+    plt.figure()
+    plt.plot(np.array([df['Gd'].loc[i] for i in range(nwalkers)]).T)
+    plt.title(r'Burn in for $\Gamma_{deph}$')
+    plt.show()
+    
+    if withlaserskew == True:
+        plt.figure()
+        plt.plot(np.array([df['Skew'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $Skew$')
+        plt.show()
+        
+def get_burnin_data(sampler, burn_in_time = 200, withlaserskew = False):
+    """
+    This function trims the data according to the burn in time.
+
+    Parameters:
+        sampler: the object which contains the samples (emcee sampler)
+        burn_in_time (optional): the number of samples to trim (int)
+        withlaserskew (optional): marks whether to use laserskew functions or not (bool)
+        
+    Returns:
+       parameter_samples: the pandas data frame object reshaped
+
+    """
+    samples = sampler.chain[:,burn_in_time:,:]
+    # reshape the samples into a 1D array where the colums are
+    # BG, Ap, Gammap, Ah, Omegah, Gammadeph
+    if withlaserskew:
+        numdim = 7
+        traces = samples.reshape(-1, numdim).T
+        # create a pandas DataFrame with labels
+        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
+                        'Gp': traces[2], 'Ah': traces[3],
+                        'Oh': traces[4], 'Gd':traces[5],
+                            'Skew': traces[6]})
+    else: 
+        numdim = 6
+        traces = samples.reshape(-1, numdim).T
+        # create a pandas DataFrame with labels
+        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
+                        'Gp': traces[2], 'Ah': traces[3],
+                        'Oh': traces[4], 'Gd':traces[5]})
+    
+    return parameter_samples
     
