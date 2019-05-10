@@ -13,33 +13,42 @@ RRData = rr_io.load_data(rr_io.get_example_data_file_path(testfilename))
 
 class TestRR_MODEL(TestCase):
     def test_likelihood_zero_for_nonesense(self):
-        s_likelihood = rr_model.likelihood_mN1(RRData, 0, 0, 0, 0, 0, 0, 0, 0)[0]
+        dataN = 10
+        s_likelihood = rr_model.likelihood_mN1(RRData, 0, 0, 0, 0, 0, 0, 
+                                                0, 0, dataN)[0]
         self.assertTrue(s_likelihood == 0.0)
 
     def test_likelihood_mN1(self):
         time_min = 0
         time_max = 40
+        dataN = 10 # so mN = +1
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
-        likelihood = rr_model.likelihood_mN1(RRData,time_min,time_max,*theta)[0]
+        likelihood = rr_model.likelihood_mN1(RRData,time_min,time_max,*theta,dataN)[0]
         self.assertAlmostEqual(likelihood,3.2035056889734263e-74)
 
 
     def test_likelihood_ratio(self):
-        s_likelihood = rr_model.likelihood_mN1(RRData, 0, 40, 6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871)[0]
-        s2_likelihood = rr_model.likelihood_mN1(RRData, 0, 40, 10*6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871)[0]
+        dataN = 10 # so mN = +1
+        s_likelihood = rr_model.likelihood_mN1(RRData, 0, 40, 6.10, 16.6881, 
+                                                1/63.8806, 5.01886, -np.pi/8.77273, 
+                                                1/8.5871, dataN)[0]
+        s2_likelihood = rr_model.likelihood_mN1(RRData, 0, 40, 10*6.10, 16.6881, 
+                                                1/63.8806, 5.01886, -np.pi/8.77273, 
+                                                1/8.5871, dataN)[0]
         self.assertTrue(s_likelihood > s2_likelihood)
 
     def test_loglikelihood_for_nonesense(self):
         # previously estimated parameters:
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
         # generate some data
-        test_data = rr_model.generate_test_data(theta, 161, 500, 0, 40)
+        dataN = 10 # so this will be mN = +1 data
+        test_data = rr_model.generate_test_data(theta, 161, 500, 0, 40, 10)
         # initial guess with a deliberately bad parameter
         bad_guess = theta
         bad_guess[0] = -100
         # calculate loglikelihood
         loglikelihood = rr_model.unbinned_loglikelihood_mN1(bad_guess,
-                test_data, 0, 40, False)
+                test_data, 0, 40, False, dataN)
         self.assertTrue(np.isnan(loglikelihood))
 
     def test_unbinned_loglikelihood_mN1(self):
@@ -47,8 +56,10 @@ class TestRR_MODEL(TestCase):
         time_min = 0
         time_max = 40
         fromcsv = True
+        dataN = 10 # so this is mN = +1
 
-        likelihood = rr_model.unbinned_loglikelihood_mN1(theta,RRData,time_min,time_max,fromcsv)
+        likelihood = rr_model.unbinned_loglikelihood_mN1(theta,RRData,time_min,
+                                                        time_max,fromcsv,dataN)
         self.assertTrue(np.round(likelihood,2) == -9253.76)
 
     def test_laserskew_unbinned_loglikelihood_mN1(self):
@@ -57,9 +68,10 @@ class TestRR_MODEL(TestCase):
         theta = np.concatenate((theta,np.ones(data_length)),axis=0)
         time_min = 0
         time_max = 40
+        dataN = 10 # so mN = +1
         fromcsv = True
         likelihood = rr_model.laserskew_unbinned_loglikelihood_mN1(theta,RRData,
-            time_min,time_max,fromcsv)
+            time_min,time_max,fromcsv,dataN)
         self.assertTrue(np.round(likelihood,2) == -9253.76)
 
     def test_generate_test_data(self):
@@ -68,9 +80,11 @@ class TestRR_MODEL(TestCase):
         samples = 5
         time_min = 0
         time_max = 40
+        dataN = 10 # so this is mN = +1
         # set the seed for reproducibility
         np.random.seed(0)
-        test_data = rr_model.generate_test_data(theta,timesteps,samples,time_min,time_max)
+        test_data = rr_model.generate_test_data(theta,timesteps,samples,
+                                                time_min,time_max,dataN)
         correct_values = np.array([[ 0.0371,  0.0207,  0.0228,  0.0256,  0.0222],
                [ 0.0227,  0.0231,  0.018 ,  0.0161,  0.0166],
                [ 0.0286,  0.0253,  0.0219,  0.017 ,  0.0167],
@@ -106,8 +120,10 @@ class TestRR_MODEL(TestCase):
         time_min = 0
         time_max = 40
         fromcsv = True
+        dataN = 10 # so this is mN = +1
 
-        logposterior = rr_model.log_posterior(theta,RRData,time_min,time_max,fromcsv)
+        logposterior = rr_model.log_posterior(theta,RRData,time_min,time_max,
+                                            fromcsv,dataN)
         self.assertTrue(np.round(logposterior,2) == -9253.76)
 
 
@@ -125,11 +141,12 @@ class TestRR_MODEL(TestCase):
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
         time_min = 0
         time_max = 40
+        dataN = 10 # so this is mN = +1
         fromcsv = True
         data_length = len(RRData.get_df())
         theta = np.concatenate((theta,np.ones(data_length)),axis=0)
         logposterior = rr_model.laserskew_log_posterior(theta,RRData,time_min,
-                time_max,fromcsv)
+                time_max,fromcsv,dataN)
         self.assertTrue(np.round(logposterior,2) == -9253.76)
 
 
@@ -140,7 +157,8 @@ class TestRR_MODEL(TestCase):
 
         # generate some data
         np.random.seed(0)
-        test_data = rr_model.generate_test_data(theta, 161, 30, 0, 40)
+        dataN = 10 # so this is mN = +1
+        test_data = rr_model.generate_test_data(theta, 161, 30, 0, 40, dataN)
 
         # run MCMC on the test data and see if it's pretty close to the original theta
         guesses = theta
@@ -149,7 +167,9 @@ class TestRR_MODEL(TestCase):
         numsteps = 10
 
         np.random.seed(0)
-        test_samples = rr_model.Walkers(test_data, guesses, 0, 40, False, dataN=10, scale_factor=100*100, nwalkers=numwalkers, nsteps=numsteps)
+        test_samples = rr_model.Walkers(test_data, guesses, 0, 40, False, 
+                                    dataN, scale_factor=100*100, 
+                                    nwalkers=numwalkers, nsteps=numsteps)
         samples = test_samples.chain[:,:,:]
         traces = samples.reshape(-1, numdim).T
         parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 
@@ -184,8 +204,9 @@ class TestRR_MODEL(TestCase):
 
         # generate some data
         np.random.seed(0)
+        dataN = 10 # so this is mN = +1
         test_data = rr_model.generate_test_data(theta, 161, 
-                                                data_length, 0, 40,
+                                                data_length, 0, 40, dataN,
                                                 include_laserskews=True)
 
         # run MCMC on the test data and see if it's pretty close to the original theta
@@ -194,8 +215,9 @@ class TestRR_MODEL(TestCase):
         numwalkers = 20
         numsteps = 10
         np.random.seed(0)
+        dataN = 10 # so this is mN = +1
         test_samples = rr_model.laserskew_Walkers(test_data, guesses, 
-                                                  0, 40, False, dataN=10, 
+                                                  0, 40, False, dataN, 
                                                   scale_factor=100*100, 
                                                   nwalkers=numwalkers, 
                                                   nsteps=numsteps)
