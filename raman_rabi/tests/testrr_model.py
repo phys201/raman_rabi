@@ -8,7 +8,7 @@ from raman_rabi import rr_model
 import numpy as np
 import pandas as pd
 
-testfilename = "21.07.56_Pulse Experiment_E1 Raman Pol p0 Rabi Rep Readout - -800 MHz, ND0.7 Vel1, Presel 6 (APD2, Win 3)_ID10708_image.txt"
+testfilename = "21.07.56_Pulse Experiment_E1 Raman Pol p0 Rabi Rep Readout - -800 MHz, ND0.7 Vel1, Presel 6 (APD2, Win 3)_ID10708_image.txt" 
 RRData = rr_io.load_data(rr_io.get_example_data_file_path(testfilename))
 
 class TestRR_MODEL(TestCase):
@@ -139,30 +139,41 @@ class TestRR_MODEL(TestCase):
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
 
         # generate some data
-        test_data = rr_model.generate_test_data(theta, 161, 500, 0, 40)
+        np.random.seed(0)
+        test_data = rr_model.generate_test_data(theta, 161, 30, 0, 40)
 
         # run MCMC on the test data and see if it's pretty close to the original theta
         guesses = theta
         numdim = len(guesses)
-        numwalkers = 100
-        numsteps = 500
+        numwalkers = 12
+        numsteps = 10
+
         np.random.seed(0)
         test_samples = rr_model.Walkers(test_data, guesses, 0, 40, False, dataN=10, scale_factor=100*100, nwalkers=numwalkers, nsteps=numsteps)
-        burn_in_time = 100
-        samples = test_samples.chain[:,burn_in_time:,:]
+        samples = test_samples.chain[:,:,:]
         traces = samples.reshape(-1, numdim).T
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 'Gammap': traces[2], 'Ah': traces[3], 'Omegah': traces[4], 'Gammadeph': traces[5]})
+        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 
+            'Gammap': traces[2], 'Ah': traces[3], 
+            'Omegah': traces[4], 'Gammadeph': traces[5]})
+        
         MAP = parameter_samples.quantile([0.50], axis=0)
-        self.assertTrue(abs((MAP['BG'].values[0]-guesses[0])/guesses[0]) < 0.2)
-        self.assertTrue(abs((MAP['Ap'].values[0]-guesses[1])/guesses[1]) < 0.2)
-        self.assertTrue(abs((MAP['Gammap'].values[0]-guesses[2])/guesses[2]) < 0.2)
-        self.assertTrue(abs((MAP['Ah'].values[0]-guesses[3])/guesses[3]) < 0.2)
-        self.assertTrue(abs((MAP['Omegah'].values[0]-guesses[4])/guesses[4]) < 0.2)
-        self.assertTrue(abs((MAP['Gammadeph'].values[0]-guesses[5])/guesses[5]) < 0.2)
+
+        self.assertTrue(np.isclose(MAP['BG'].values[0],
+                                    6.09997279257,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Ap'].values[0],
+                                    16.6881061285,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Gammap'].values[0],
+                                    0.015545312232,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Ah'].values[0],
+                                    5.01878368798,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Omegah'].values[0],
+                                    -0.358125323475,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Gammadeph'].values[0],
+                                    0.116419769496,atol=0.01,rtol=0.01))
 
     def test_laserskew_parameter_estimation(self):
         # previously estimated parameters:
-        data_length = 14
+        data_length = 4
         # set random seed for reproducibility
         np.random.seed(0)
         skew_values = np.random.rand(data_length)
@@ -172,6 +183,7 @@ class TestRR_MODEL(TestCase):
                                     skew_values), axis=0) 
 
         # generate some data
+        np.random.seed(0)
         test_data = rr_model.generate_test_data(theta, 161, 
                                                 data_length, 0, 40,
                                                 include_laserskews=True)
@@ -179,16 +191,15 @@ class TestRR_MODEL(TestCase):
         # run MCMC on the test data and see if it's pretty close to the original theta
         guesses = theta
         numdim = len(guesses)
-        numwalkers = 200
-        numsteps = 500
+        numwalkers = 20
+        numsteps = 10
         np.random.seed(0)
         test_samples = rr_model.laserskew_Walkers(test_data, guesses, 
                                                   0, 40, False, dataN=10, 
                                                   scale_factor=100*100, 
                                                   nwalkers=numwalkers, 
                                                   nsteps=numsteps)
-        burn_in_time = 200
-        samples = test_samples.chain[:,burn_in_time:,:]
+        samples = test_samples.chain[:,:,:]
         traces = samples.reshape(-1, numdim).T
         parameter_samples = pd.DataFrame({'BG': traces[0], 
                                           'Ap': traces[1], 
@@ -199,28 +210,25 @@ class TestRR_MODEL(TestCase):
         laserskew_samples = pd.DataFrame(traces[6:].T)
         MAP = parameter_samples.quantile([0.50], axis=0)
         laserskew_MAP = laserskew_samples.quantile([0.50],axis=0)
-        self.assertTrue(abs((MAP['BG'].values[0]-guesses[0])/guesses[0]) < 0.2)
-        self.assertTrue(abs((MAP['Ap'].values[0]-guesses[1])/guesses[1]) < 0.2)
-        #print("MAP['Gammap'] is",MAP['Gammap'].values[0])
-        #print("guesses[2] is",guesses[2])
-        #print("% difference is",abs((MAP['Gammap'].values[0]-guesses[2])/guesses[2]))
-        self.assertTrue(abs((MAP['Gammap'].values[0]-guesses[2])/guesses[2]) < 0.3)
-        #print("MAP['Ah'] is",MAP['Ah'].values[0])
-        #print("guesses[3] is",guesses[3])
-        #print("% difference is",abs((MAP['Ah'].values[0]-guesses[3])/guesses[3]))
-        self.assertTrue(abs((MAP['Ah'].values[0]-guesses[3])/guesses[3]) < 0.2)
-        #print("MAP['Omegah'] is",MAP['Omegah'].values[0])
-        #print("guesses[4] is",guesses[4])
-        #print("% difference is",abs((MAP['Omegah'].values[0]-guesses[4])/guesses[4]))
-        self.assertTrue(abs((MAP['Omegah'].values[0]-guesses[4])/guesses[4]) < 0.2)
-        #print("MAP['Gammadeph'] is",MAP['Gammadeph'].values[0])
-        #print("guesses[5] is",guesses[5])
-        #print("% difference is",abs((MAP['Gammadeph'].values[0]-guesses[5])/guesses[5]))
-        self.assertTrue(abs((MAP['Gammadeph'].values[0]-guesses[5])/guesses[5]) < 0.2)
-        laserskew_columns = list(laserskew_MAP)
-        for column in laserskew_columns:
-            #print("laserskew_MAP",column,"is",laserskew_MAP[column].values[0])
-            #print("guesses[6+",column,"] is",guesses[6+column])
-            #print("% difference is",abs((laserskew_MAP[column].values[0]-guesses[6+column])/guesses[6+column]))
-            self.assertTrue(abs((laserskew_MAP[column].values[0]-guesses[6+column])/guesses[6+column]) < 0.2)
+
+        self.assertTrue(np.isclose(MAP['BG'].values[0],
+                                    6.09997279257,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Ap'].values[0],
+                                    16.6881061285,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Gammap'].values[0],
+                                    0.015545312232,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Ah'].values[0],
+                                    5.01878368798,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Omegah'].values[0],
+                                    -0.358125323475,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(MAP['Gammadeph'].values[0],
+                                    0.116419769496,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(laserskew_MAP[0].values[0],
+                        0.549064153931,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(laserskew_MAP[1].values[0],
+                        0.715025261887,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(laserskew_MAP[2].values[0],
+                        0.602047243459,atol=0.01,rtol=0.01))
+        self.assertTrue(np.isclose(laserskew_MAP[3].values[0],
+                        0.544642527582,atol=0.01,rtol=0.01)) 
 
