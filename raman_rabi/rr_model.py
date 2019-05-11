@@ -252,19 +252,35 @@ def sampler_to_dataframe(sampler, withlaserskew = False):
         sampler: the object which contains the samples (emcee sampler)
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
 
-    Returns:
+    Returns:(if withlaserskew = True)
        df: the pandas data frame object which now contains the samples taken by nwalkers
            walkers over nsteps steps
+    Returns:(if withlaserskew = False)
+       df, laserskew_samples: the pandas data frame object with laserskew
+       
     """
-    panel = pd.Panel(sampler.chain).transpose(2,0,1) # transpose permutes indices of the panel
-    df = panel.to_frame() # transform panel to dataframe
-    df.index.rename(['chain', 'step'], inplace=True)
-    if withlaserskew == False:   
+    
+    if withlaserskew == False: 
+        panel = pd.Panel(sampler.chain).transpose(2,0,1) # transpose permutes indices of the panel
+        df = panel.to_frame() # transform panel to dataframe
+        df.index.rename(['chain', 'step'], inplace=True)
         df.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd']
+        return df
     else:
-        df.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd', 'Skew']
+        samples = sampler.chain[:,:,:]
+        numdim = np.shape(sampler.chain)[-1]
+        traces = samples.reshape(-1, numdim).T
+        df = pd.DataFrame({'BG': traces[0], 
+                                             'Ap': traces[1], 
+                                             'Gp': traces[2], 
+                                             'Ah': traces[3], 
+                                             'Oh': traces[4], 
+                                             'Gd': traces[5] })
+        laserskew_samples = pd.DataFrame(traces[6:].T)
         
-    return df
+        return df, laserskew_samples
+
+    
 
 def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
     """
@@ -276,40 +292,74 @@ def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
 
     """
-    df = sampler_to_dataframe(sampler, withlaserskew)
-    plt.figure()
-    plt.plot(np.array([df['BG'].loc[i] for i in range(nwalkers)]).T)
-    plt.title(r'Burn in for $B_G$')
-    plt.show()
-
-    plt.figure()
-    plt.plot(np.array([df['Ap'].loc[i] for i in range(nwalkers)]).T)
-    plt.title(r'Burn in for $A_p$')
-    plt.show()
-
-    plt.figure()
-    plt.plot(np.array([df['Gp'].loc[i] for i in range(nwalkers)]).T)
-    plt.title(r'Burn in for $\Gamma_p$')
-    plt.show()
-
-    plt.figure()
-    plt.plot(np.array([df['Ah'].loc[i] for i in range(nwalkers)]).T)
-    plt.title(r'Burn in for $A_h$')
-    plt.show()
-
-    plt.figure()
-    plt.plot(np.array([df['Oh'].loc[i] for i in range(nwalkers)]).T)
-    plt.title(r'Burn in for $\Omega_h$')
-    plt.show()
+    if withlaserskew == True:
+        df, laserskew_df = sampler_to_dataframe(sampler, withlaserskew)
+    else:
+        df = sampler_to_dataframe(sampler, withlaserskew)
     
-    plt.figure()
-    plt.plot(np.array([df['Gd'].loc[i] for i in range(nwalkers)]).T)
-    plt.title(r'Burn in for $\Gamma_{deph}$')
-    plt.show()
+        plt.figure()
+        plt.plot(np.array([df['BG'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $B_G$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Ap'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $A_p$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Gp'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $\Gamma_p$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Ah'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $A_h$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Oh'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $\Omega_h$')
+        plt.show()
+        
+        plt.figure()
+        plt.plot(np.array([df['Gd'].loc[i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $\Gamma_{deph}$')
+        plt.show()
     
     if withlaserskew == True:
         plt.figure()
-        plt.plot(np.array([df['Skew'].loc[i] for i in range(nwalkers)]).T)
+        plt.plot(np.array([df['BG'] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $B_G$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Ap'] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $A_p$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Gp'] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $\Gamma_p$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Ah'] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $A_h$')
+        plt.show()
+    
+        plt.figure()
+        plt.plot(np.array([df['Oh'] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $\Omega_h$')
+        plt.show()
+        
+        plt.figure()
+        plt.plot(np.array([df['Gd'] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $\Gamma_{deph}$')
+        plt.show()
+        
+        plt.figure()
+        plt.plot(np.array([laserskew_df[0] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$')
         plt.show()
         
@@ -322,28 +372,26 @@ def get_burnin_data(sampler, burn_in_time = 200, withlaserskew = False):
         burn_in_time (optional): the number of samples to trim (int)
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
         
-    Returns:
-       parameter_samples: the pandas data frame object reshaped
+    Returns:(if withlaserskew = True)
+       df: the pandas data frame object which now contains the samples taken by nwalkers
+           walkers over nsteps steps
+    Returns:(if withlaserskew = False)
+       df, laserskew_samples: the pandas data frame object with laserskew
 
     """
     samples = sampler.chain[:,burn_in_time:,:]
     # reshape the samples into a 1D array where the colums are
     # BG, Ap, Gammap, Ah, Omegah, Gammadeph
+    numdim = 6
+    traces = samples.reshape(-1, numdim).T
+    # create a pandas DataFrame with labels
+    df_trimmed = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
+                    'Gp': traces[2], 'Ah': traces[3],
+                    'Oh': traces[4], 'Gd':traces[5]})
     if withlaserskew:
-        numdim = 7
-        traces = samples.reshape(-1, numdim).T
-        # create a pandas DataFrame with labels
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
-                        'Gp': traces[2], 'Ah': traces[3],
-                        'Oh': traces[4], 'Gd':traces[5],
-                            'Skew': traces[6]})
+        numdim = np.shape(sampler.chain)[-1]
+        laserskew_df = pd.DataFrame(traces[6:].T)
+        return df_trimmed, laserskew_df 
     else: 
-        numdim = 6
-        traces = samples.reshape(-1, numdim).T
-        # create a pandas DataFrame with labels
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
-                        'Gp': traces[2], 'Ah': traces[3],
-                        'Oh': traces[4], 'Gd':traces[5]})
-    
-    return parameter_samples
+        return df_trimmed
     
