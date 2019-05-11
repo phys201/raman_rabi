@@ -43,12 +43,13 @@ class TestRR_MODEL(TestCase):
         # generate some data
         dataN = 10 # so this will be mN = +1 data
         test_data = rr_model.generate_test_data(theta, 161, 500, 0, 40, 10)
+        scale_factor = 100*100
         # initial guess with a deliberately bad parameter
         bad_guess = theta
         bad_guess[0] = -100
         # calculate loglikelihood
-        loglikelihood = rr_model.unbinned_loglikelihood_mN1(bad_guess,
-                test_data, 0, 40, False, dataN)
+        loglikelihood = rr_model.general_loglikelihood(bad_guess,
+                test_data, 0, 40, False, dataN,scale_factor)
         self.assertTrue(np.isnan(loglikelihood))
 
     def test_unbinned_loglikelihood_mN1(self):
@@ -57,9 +58,11 @@ class TestRR_MODEL(TestCase):
         time_max = 40
         fromcsv = True
         dataN = 10 # so this is mN = +1
+        scale_factor = 100*100
 
-        likelihood = rr_model.unbinned_loglikelihood_mN1(theta,RRData,time_min,
-                                                        time_max,fromcsv,dataN)
+        likelihood = rr_model.general_loglikelihood(theta,RRData,time_min,
+                                                        time_max,fromcsv,dataN,
+                                                        scale_factor)
         self.assertTrue(np.round(likelihood,2) == -9253.76)
 
     def test_laserskew_unbinned_loglikelihood_mN1(self):
@@ -69,9 +72,10 @@ class TestRR_MODEL(TestCase):
         time_min = 0
         time_max = 40
         dataN = 10 # so mN = +1
+        scale_factor = 100*100
         fromcsv = True
-        likelihood = rr_model.laserskew_unbinned_loglikelihood_mN1(theta,RRData,
-            time_min,time_max,fromcsv,dataN)
+        likelihood = rr_model.general_loglikelihood(theta,RRData,
+            time_min,time_max,fromcsv,dataN,scale_factor,withlaserskew=True)
         self.assertTrue(np.round(likelihood,2) == -9253.76)
 
     def test_generate_test_data(self):

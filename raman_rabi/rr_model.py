@@ -71,9 +71,7 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
 def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = False):
     BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
     if withlaserskew:
-        #print(">>> withlaserskew branch here")
         a_vec = np.array(theta[6:len(theta)])
-        #print(">>> a_vec type:",type(a_vec))
         a_vec.shape = (len(a_vec), 1)
     
     if fromcsv:
@@ -85,50 +83,10 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, s
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
     if withlaserskew:
         mu_mat = np.multiply(mu_mat,a_vec)
-    #print(">>> mu_mat is",mu_mat)
     z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
     loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
     return loglikelihood
 
-
-def unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100):
-    """
-    This function calculates the unbinned log-likelihood of model 1
-
-    Parameters:
-        theta: the model parameters to use in this log-posterior calculation (array)
-        mN1_data: fluoresence data for each time step (RRDataContainer)
-        time_min: minimum Raman-Rabi pulse time (float)
-        time_max: maximum Raman-Rabi pulse time (float)
-        fromcsv: marks whether these data were read from a CSV file (bool)
-        dataN: number of experiment repititions summed (int)
-        scale_factor (optional): nuclear spin signal multiplier (float)
-
-    Returns:
-        loglikelihood: the log-likelihood of the data given the parameters in theta (float)
-    """
-    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = False)
-    return loglikelihood
-
-def laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100):
-    """
-    This function calculates the unbinned log-likelihood of model 1 for N data points INCLUDING N parameters a_i of laser skew strength (a between zero and infinity)
-
-    Parameters:
-        theta: the model parameters to use in this log-posterior calculation (array)
-        mN1_data: fluoresence data for each time step (RRDataContainer)
-        time_min: minimum Raman-Rabi pulse time (float)
-        time_max: maximum Raman-Rabi pulse time (float)
-        fromcsv: marks whether these data were read from a CSV file (bool)
-        dataN: number of experiment repititions summed (int)
-        scale_factor (optional): nuclear spin signal multiplier (float)
-
-    Returns:
-        loglikelihood: the log-likelihood of the data given the parameters in theta (float)
-    """
-    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = True)
-    return loglikelihood
-    
 
 def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, scale_factor=100*100, include_laserskews=False):
     """
@@ -210,7 +168,9 @@ def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_fac
     Returns:
         log-posterior: the value of the log-posterior for the data given the parameters in theta
     """
-    return log_prior(theta,priors) + unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100)
+    return log_prior(theta,priors) + general_loglikelihood(theta, mN1_data, time_min, 
+                                                            time_max, fromcsv, dataN, 
+                                                            scale_factor=100*100)
 
 def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100, priors=None):
     """
@@ -237,7 +197,9 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
     #    logprior = log_prior(theta,priors)
     #    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
     #        return -np.inf
-    loglikelihood = laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=scale_factor)
+# general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = True)
+    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
+            fromcsv, dataN, scale_factor=scale_factor, withlaserskew=True)
     logprior = log_prior(theta,priors)
 
     if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior) or np.isnan(logprior+loglikelihood):
