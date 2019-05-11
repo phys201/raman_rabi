@@ -165,11 +165,12 @@ class TestRR_MODEL(TestCase):
         numdim = len(guesses)
         numwalkers = 12
         numsteps = 10
+        gaus_var = 1e-4
 
         np.random.seed(0)
-        test_samples = rr_model.Walkers(test_data, guesses, 0, 40, False, 
-                                    dataN, scale_factor=100*100, 
-                                    nwalkers=numwalkers, nsteps=numsteps)
+        test_samples = rr_model.Walkers_Sampler(test_data, guesses, 0, 40, False, 
+                                    dataN, gaus_var, 
+                                    numwalkers, numsteps)
         samples = test_samples.chain[:,:,:]
         traces = samples.reshape(-1, numdim).T
         parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 
@@ -192,7 +193,6 @@ class TestRR_MODEL(TestCase):
                                     0.116419769496,atol=0.01,rtol=0.01))
 
     def test_laserskew_parameter_estimation(self):
-        # previously estimated parameters:
         data_length = 4
         # set random seed for reproducibility
         np.random.seed(0)
@@ -201,6 +201,18 @@ class TestRR_MODEL(TestCase):
                                         1/63.8806, 5.01886, 
                                         -np.pi/8.77273, 1/8.5871]), 
                                     skew_values), axis=0) 
+        # list of priors
+        laserskew_priors = [ ['flat'], # BG
+                             ['flat'], # Ap
+                             ['flat'], # Gammap
+                             ['flat'], # Ah
+                             ['flat'], # Omegah
+                             ['flat'], # Gammadeph
+                             ['uniform',0.,1.],  # a_1
+                             ['uniform',0.,1.],  # a_2
+                             ['uniform',0.,1.],  # a_3
+                             ['uniform',0.,1.] ] # a_4
+
 
         # generate some data
         np.random.seed(0)
@@ -216,11 +228,14 @@ class TestRR_MODEL(TestCase):
         numsteps = 10
         np.random.seed(0)
         dataN = 10 # so this is mN = +1
-        test_samples = rr_model.laserskew_Walkers(test_data, guesses, 
+        gaus_var = 1e-3
+        laserskewed = True
+        test_samples = rr_model.Walkers_Sampler(test_data, guesses, 
                                                   0, 40, False, dataN, 
-                                                  scale_factor=100*100, 
-                                                  nwalkers=numwalkers, 
-                                                  nsteps=numsteps)
+                                                  gaus_var, nwalkers=numwalkers, 
+                                                  nsteps=numsteps, 
+                                                  withlaserskew=laserskewed,
+                                                  priors=laserskew_priors)
         samples = test_samples.chain[:,:,:]
         traces = samples.reshape(-1, numdim).T
         parameter_samples = pd.DataFrame({'BG': traces[0], 
