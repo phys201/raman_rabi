@@ -222,18 +222,27 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
     #    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
     #        return -np.inf
 # general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = True)
-
     logprior = log_prior(theta,priors)
-    #print(logprior)
     if np.isnan(logprior) or not np.isfinite(logprior):
-        #print('successfully returning kill value')
-        return -np.inf
-    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
-            fromcsv, dataN, runN, scale_factor=scale_factor, withlaserskew=True)
-    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior) or np.isnan(logprior+loglikelihood):
+        #print('succesful inf')
         return -np.inf
     else:
-        return logprior + loglikelihood
+        loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
+            fromcsv, dataN, runN, scale_factor=scale_factor, withlaserskew=True)
+        if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):  #or np.isnan(logprior+loglikelihood):
+            #print(theta)
+            #print(loglikelihood)
+            #print('I fail')
+            #print('')
+            #print(loglikelihood)
+            return -np.inf
+        else:
+            #print('I pass')
+            #print('')
+            #print(theta)
+            #print(logprior + loglikelihood)
+            #print('')
+            return logprior + loglikelihood
 
 def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew = False, priors=None):
     """
