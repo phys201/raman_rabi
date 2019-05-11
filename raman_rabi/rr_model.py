@@ -37,7 +37,7 @@ def ideal_model(steps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph
     mu = BG + Ap*np.exp(-Gammap*time) + Ah*np.cos(Omegah*time)*np.exp(-Gammadeph*time)
     return time, mu
 
-def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph, dataN, scale_factor=100*100):
+def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph, dataN, runN, scale_factor=100*100):
     """
     The likelihood function of mN1 spin Raman-Rabi electronic-nuclear flip-flop data, assuming only shot noise from
     continuous fluoresence spectrum (Poisson distribution becomes Gaussian
@@ -60,16 +60,23 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
         mu: the values of the model given these parameters (array of floats)
     """
     mN1_size = mN1_data.get_df().shape[0]
-    mN1_data = scale_factor*np.sum(mN1_data.get_df()) / (dataN*mN1_size)
+    BG = BG*runN*dataN*mN1_size/scale_factor
+    Ap = Ap*runN*dataN*mN1_size/scale_factor
+    Ah = Ah*runN*dataN*mN1_size/scale_factor
+    #mN1_data = scale_factor*np.sum(mN1_data.get_df()) / (dataN*mN1_size)
+    mN1_data = runN*np.sum(mN1_data.get_df())
     time, mu = ideal_model(len(mN1_data), time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
 
     #we make data into unit normal distribution, uncertainty sigma of shot noise = sqrt(mu)
     z_data = (mN1_data - mu)/np.sqrt(mu)
     likelihood = (2*np.pi)**(-len(mN1_data)/2) * np.exp(-np.sum(z_data**2)/2.)
-    return likelihood, mu
+    return likelihood, mu*scale_factor/(runN*dataN*mN1_size)
 
-def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = False):
+def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor, withlaserskew = False):
     BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
+    BG = BG*runN*dataN/scale_factor
+    Ap = Ap*runN*dataN/scale_factor
+    Ah = Ah*runN*dataN/scale_factor
     if withlaserskew:
         a_vec = np.array(theta[6:len(theta)])
         a_vec.shape = (len(a_vec), 1)
@@ -78,7 +85,8 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, s
         mN1_data = mN1_data.get_df().values
     else:
         mN1_data = mN1_data.values
-    mN1_data = scale_factor*mN1_data/dataN
+    #mN1_data = scale_factor*mN1_data/dataN
+    mN1_data = runN*mN1_data #make a Poissonian distribution again
     time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
     if withlaserskew:
@@ -88,7 +96,7 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, s
     return loglikelihood
 
 
-def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, scale_factor=100*100, include_laserskews=False):
+def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, runN, scale_factor=100*100, include_laserskews=False):
     """
     This function wraps the ideal model function, adds Gaussian noise to the data, and returns
     a test dataset.
@@ -107,6 +115,9 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, sca
         test_data: a pandas DataFrame containing the test data (DataFrame)
     """
     BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
+    BG = BG*runN*dataN/scale_factor
+    Ap = Ap*runN*dataN/scale_factor
+    Ah = Ah*runN*dataN/scale_factor
     if include_laserskews:
         laserskews = theta[6:]
     time, mu = ideal_model(timesteps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
@@ -115,7 +126,8 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, sca
     mu_mat = np.tile(mu, (samples, 1))
     if include_laserskews:
         mu_mat = np.multiply(mu_mat,laserskews[:,None])
-    test_data = dataN*(mu_mat + uncertainty)/scale_factor
+    #test_data = dataN*(mu_mat + uncertainty)/scale_factor
+    test_data = (mu_mat + uncertainty)/runN
     return pd.DataFrame(test_data)
 
 
@@ -142,8 +154,11 @@ def log_prior(theta, priors=None):
         if prior[0] == 'flat':
             logprior_arr.append(0)
         elif prior[0] == 'uniform':
+            #print('catching uniform')
             if (param <= prior[1]) or (param >= prior[2]):
+                #print('catching param outside of prior')
                 return -np.inf
+                #print('I dont terminate')
             else:
                 logprior_arr.append(0)
         else:
@@ -152,7 +167,7 @@ def log_prior(theta, priors=None):
     return np.sum(logprior_arr)
 
 
-def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100, priors=None):
+def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor=100*100, priors=None):
     """
     The log posterior for the Raman-Rabi model, using the unbinned log-likelihood.
 
@@ -168,11 +183,20 @@ def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_fac
     Returns:
         log-posterior: the value of the log-posterior for the data given the parameters in theta
     """
-    return log_prior(theta,priors) + general_loglikelihood(theta, mN1_data, time_min, 
-                                                            time_max, fromcsv, dataN, 
-                                                            scale_factor=100*100)
 
-def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100, priors=None):
+    logprior = log_prior(theta,priors)
+    #print(logprior)
+    if np.isnan(logprior) or not np.isfinite(logprior):
+        return -np.inf
+    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, 
+                                                            time_max, fromcsv, dataN, runN,
+                                                            scale_factor=100*100)
+    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior) or np.isnan(logprior+loglikelihood):
+        return -np.inf
+    else:
+        return logprior + loglikelihood
+
+def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor=100*100, priors=None):
     """
     The log posterior for the Raman-Rabi model, using the unbinned log-likelihood WITH LASER SKEW PARAMETER a.
 
@@ -198,16 +222,20 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
     #    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
     #        return -np.inf
 # general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = True)
-    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
-            fromcsv, dataN, scale_factor=scale_factor, withlaserskew=True)
-    logprior = log_prior(theta,priors)
 
+    logprior = log_prior(theta,priors)
+    #print(logprior)
+    if np.isnan(logprior) or not np.isfinite(logprior):
+        #print('successfully returning kill value')
+        return -np.inf
+    loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
+            fromcsv, dataN, runN, scale_factor=scale_factor, withlaserskew=True)
     if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior) or np.isnan(logprior+loglikelihood):
         return -np.inf
     else:
         return logprior + loglikelihood
 
-def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew = False, priors=None):
+def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew = False, priors=None):
     """
     This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
     and 1e-3 for gaus_var when withlaserskew=True.
@@ -233,11 +261,11 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, gaus_
     starting_positions = [guesses + gaus_var*np.random.randn(ndim) for i in range(nwalkers)]
     if withlaserskew == False:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, 
-                                args=[mN1_data, time_min, time_max, fromcsv, dataN],
+                                args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
                                 kwargs={'priors':priors})
     else:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, laserskew_log_posterior, 
-                                args=[mN1_data, time_min, time_max, fromcsv, dataN],
+                                args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
                                 kwargs={'priors':priors})
         
     sampler.run_mcmc(starting_positions, nsteps)
