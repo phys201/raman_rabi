@@ -53,6 +53,7 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
         Omegah: hyperfine flip-flop time-scale parameter (float)
         Gammadeph: Raman-Rabi dephasing time-scale parameter (float)
         dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
 
     Returns:
@@ -73,6 +74,23 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
     return likelihood, mu*scale_factor/(runN*dataN*mN1_size)
 
 def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor, withlaserskew = False):
+    """
+    This function calculates the log of the Bayesian likelihood function
+
+    Parameters:
+        theta: the model parameters to use in this log-posterior calculation (array)
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
+        scale_factor (optional): nuclear spin signal multiplier (float)
+        withlaserskew (optional): does theta include laser skew parameters? (boolean)
+
+    Returns:
+        test_data: a pandas DataFrame containing the test data (DataFrame)
+    """
     BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
     BG = BG*runN*dataN/scale_factor
     Ap = Ap*runN*dataN/scale_factor
@@ -108,6 +126,7 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, run
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
         dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
         include_laserskews (optional): does theta include laser skew parameters? (boolean)
 
@@ -177,6 +196,7 @@ def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, sca
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
         dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
         priors (optional): an array specifying the priors to use in log_prior
 
@@ -206,6 +226,7 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
         dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
         priors (optional): an array specifying the priors to use in log_prior
 
@@ -256,6 +277,7 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
         time_max: maximum Raman-Rabi pulse time (float)
         fromcsv: marks whether these data were read from a CSV file (bool)
         dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
         gaus_var: variance of the gaussian that defines the starting positions (float)
         nwalkers: the number of walkers with which to sample (int)
         nsteps: the number of steps each walker should take (int)
@@ -281,7 +303,7 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
     return sampler
 
     
-def sampler_to_dataframe(sampler, withlaserskew = False):
+def sampler_to_dataframe(sampler, withlaserskew = False, burn_in_time = 0):
     """
     This function transforms sampler into pandas dataframe
 
@@ -289,19 +311,23 @@ def sampler_to_dataframe(sampler, withlaserskew = False):
         sampler: the object which contains the samples (emcee sampler)
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
 
-    Returns:
+    Returns:(if withlaserskew = True)
        df: the pandas data frame object which now contains the samples taken by nwalkers
            walkers over nsteps steps
+    Returns:(if withlaserskew = False)
+       df, laserskew_samples: the pandas data frame object with laserskew
     """
-    panel = pd.Panel(sampler.chain).transpose(2,0,1) # transpose permutes indices of the panel
+    panel = pd.Panel(sampler.chain[:,burn_in_time:,:]).transpose(2,0,1) # transpose permutes indices of the panel
     df = panel.to_frame() # transform panel to dataframe
     df.index.rename(['chain', 'step'], inplace=True)
-    if withlaserskew == False:   
+    if withlaserskew == False: 
         df.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd']
+        return df
     else:
-        df.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd', 'Skew']
-        
-    return df
+        df_params = df.iloc[:,0:6]
+        df_params.columns = ['BG','Ap', 'Gp' , 'Ah', 'Oh', 'Gd']
+        df_skew = df.iloc[:, 6:]
+        return df_params, df_skew
 
 def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
     """
@@ -313,7 +339,13 @@ def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
 
     """
-    df = sampler_to_dataframe(sampler, withlaserskew)
+    
+    if withlaserskew == True:
+        df, laserskew_df = sampler_to_dataframe(sampler, withlaserskew)
+    else:
+        df = sampler_to_dataframe(sampler, withlaserskew)
+    
+    
     plt.figure()
     plt.plot(np.array([df['BG'].loc[i] for i in range(nwalkers)]).T)
     plt.title(r'Burn in for $B_G$')
@@ -346,41 +378,27 @@ def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
     
     if withlaserskew == True:
         plt.figure()
-        plt.plot(np.array([df['Skew'].loc[i] for i in range(nwalkers)]).T)
-        plt.title(r'Burn in for $Skew$')
+        plt.plot(np.array([laserskew_df.iloc[:,0][i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $Skew$ for $A_1$')
         plt.show()
         
-def get_burnin_data(sampler, burn_in_time = 200, withlaserskew = False):
-    """
-    This function trims the data according to the burn in time.
-
-    Parameters:
-        sampler: the object which contains the samples (emcee sampler)
-        burn_in_time (optional): the number of samples to trim (int)
-        withlaserskew (optional): marks whether to use laserskew functions or not (bool)
+        plt.figure()
+        plt.plot(np.array([laserskew_df.iloc[:,1][i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $Skew$ for $A_2$')
+        plt.show()
         
-    Returns:
-       parameter_samples: the pandas data frame object reshaped
-
-    """
-    samples = sampler.chain[:,burn_in_time:,:]
-    # reshape the samples into a 1D array where the colums are
-    # BG, Ap, Gammap, Ah, Omegah, Gammadeph
-    if withlaserskew:
-        numdim = 7
-        traces = samples.reshape(-1, numdim).T
-        # create a pandas DataFrame with labels
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
-                        'Gp': traces[2], 'Ah': traces[3],
-                        'Oh': traces[4], 'Gd':traces[5],
-                            'Skew': traces[6]})
-    else: 
-        numdim = 6
-        traces = samples.reshape(-1, numdim).T
-        # create a pandas DataFrame with labels
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1],
-                        'Gp': traces[2], 'Ah': traces[3],
-                        'Oh': traces[4], 'Gd':traces[5]})
-    
-    return parameter_samples
+        plt.figure()
+        plt.plot(np.array([laserskew_df.iloc[:,2][i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $Skew$ for $A_3$')
+        plt.show()
+        
+        plt.figure()
+        plt.plot(np.array([laserskew_df.iloc[:,3][i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $Skew$ for $A_4$')
+        plt.show()
+        
+        plt.figure()
+        plt.plot(np.array([laserskew_df.iloc[:,4][i] for i in range(nwalkers)]).T)
+        plt.title(r'Burn in for $Skew$ for $A_5$')
+        plt.show()
     
