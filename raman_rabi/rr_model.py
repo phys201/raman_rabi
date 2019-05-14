@@ -38,6 +38,30 @@ def ideal_model(steps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph
     mu = BG + Ap*np.exp(-Gammap*time) + Ah*np.cos(Omegah*time)*np.exp(-Gammadeph*time)
     return time, mu
 
+def decay_model(steps, time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2):
+    """
+    The generative model for the Raman-Rabi data, before adding noise. Gaussian noise
+    is added by generate_test_data, below.
+    
+    Parameters:
+        steps: the number of time divisions to use in the simulated data (int)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        BG: background fluoresence parameter (float)
+        Ap: parasitic loss strength parameter (float)
+        Gammap: parasitic loss time-scale parameter (float)
+        Ah: hyperfine flip-flop strength parameter (float)
+        Omegah: hyperfine flip-flop time-scale parameter (float)
+        Gammadeph: Raman-Rabi dephasing time-scale parameter (float)
+
+    Returns:
+        time: the time points at which the simulated readouts were taken (array of floats)
+        mu: the values of the readout at each time point (array of floats)
+    """
+    time = np.linspace(time_min, time_max, steps)
+    mu = BG + Ap1*np.exp(-Gammap1*time) + Ap2*np.exp(-Gammap2*time)
+    return time, mu
+
 def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph, dataN, runN, scale_factor=100*100):
     """
     The likelihood function of mN1 spin Raman-Rabi electronic-nuclear flip-flop data, assuming only shot noise from
@@ -104,14 +128,51 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, r
         mN1_data = mN1_data.get_df().values
     else:
         mN1_data = mN1_data.values
-    #mN1_data = scale_factor*mN1_data/dataN
-    mN1_data = runN*mN1_data #make a Poissonian distribution again
+    mN1_data = runN*mN1_data
     time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
     if withlaserskew:
         mu_mat = np.multiply(mu_mat, a_vec)
     z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
-    #included the new part from the paper
+    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(np.log(np.sqrt(mu_mat))) - np.sum(z_data**2)/2.
+    return loglikelihood
+
+def decay_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor, withlaserskew = False):
+    """
+    This function calculates the log of the Bayesian likelihood function
+
+    Parameters:
+        theta: the model parameters to use in this log-posterior calculation (array)
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
+        scale_factor (optional): nuclear spin signal multiplier (float)
+        withlaserskew (optional): does theta include laser skew parameters? (boolean)
+
+    Returns:
+        test_data: a pandas DataFrame containing the test data (DataFrame)
+    """
+    BG, Ap1, Gammap1, Ap2, Gammap2 = theta[0:5]
+    BG = BG*runN*dataN/scale_factor
+    Ap1 = Ap1*runN*dataN/scale_factor
+    Ap2 = Ap2*runN*dataN/scale_factor
+    if withlaserskew:
+        a_vec = np.array(theta[5:len(theta)])
+        a_vec.shape = (len(a_vec), 1)
+    
+    if fromcsv:
+        mN1_data = mN1_data.get_df().values
+    else:
+        mN1_data = mN1_data.values
+    mN1_data = runN*mN1_data
+    time, mu = decay_model(mN1_data.shape[1], time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2)
+    mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
+    if withlaserskew:
+        mu_mat = np.multiply(mu_mat, a_vec)
+    z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
     loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(np.log(np.sqrt(mu_mat))) - np.sum(z_data**2)/2.
     return loglikelihood
 
@@ -175,11 +236,8 @@ def log_prior(theta, priors=None):
         if prior[0] == 'flat':
             logprior_arr.append(0)
         elif prior[0] == 'uniform':
-            #print('catching uniform')
             if (param <= prior[1]) or (param >= prior[2]):
-                #print('catching param outside of prior')
                 return -np.inf
-                #print('I dont terminate')
             else:
                 logprior_arr.append(0)
         else:
@@ -207,7 +265,6 @@ def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, sca
     """
 
     logprior = log_prior(theta,priors)
-    #print(logprior)
     if np.isnan(logprior) or not np.isfinite(logprior):
         return -np.inf
     loglikelihood = general_loglikelihood(theta, mN1_data, time_min, 
@@ -235,36 +292,15 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
     Returns:
         log-posterior: the value of the log-posterior for the data given the parameters in theta
     """
-    #if ((theta[2] < 0.0) or (theta[5] < 0.0) or (np.any(theta[6:len(theta)] < 0.0)) or 
-    #        (np.any(theta[6:len(theta)] > 1.01)) or (theta[0] < 0.0) or 
-    #        (theta[1] < 0) or (theta[3] < 0)): #we do 1.01 because we start one at 1.0 and it gets confused
-    #    return -np.inf
-    #else:
-    #    loglikelihood = laserskew_unbinned_loglikelihood_mN1(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor=100*100)
-    #    logprior = log_prior(theta,priors)
-    #    if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
-    #        return -np.inf
-# general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, scale_factor, withlaserskew = True)
     logprior = log_prior(theta,priors)
     if np.isnan(logprior) or not np.isfinite(logprior):
-        #print('succesful inf')
         return -np.inf
     else:
         loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
             fromcsv, dataN, runN, scale_factor=scale_factor, withlaserskew=True)
-        if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):  #or np.isnan(logprior+loglikelihood):
-            #print(theta)
-            #print(loglikelihood)
-            #print('I fail')
-            #print('')
-            #print(loglikelihood)
+        if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
             return -np.inf
         else:
-            #print('I pass')
-            #print('')
-            #print(theta)
-            #print(logprior + loglikelihood)
-            #print('')
             return logprior + loglikelihood
 
 def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew = False, priors=None):
@@ -304,6 +340,75 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
 
+def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
+    """
+    This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
+    and 1e-3 for gaus_var when withlaserskew=True.
+
+    Parameters:
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        guesses: the initial guesses for the parameters of the model (array of floats)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
+        gaus_var: variance of the gaussian that defines the starting positions (float)
+        nwalkers: the number of walkers with which to sample (int)
+        nsteps: the number of steps each walker should take (int)
+        withlaserskew (optional): marks whether to use laserskew functions or not (bool) 
+        priors (optional): an array specifying the priors to use in log_prior
+
+    Returns:
+       sampler: the sampler object which now contains the samples taken by nwalkers
+           walkers over nsteps steps
+    """
+    ndim = len(guesses)
+    # use temperature ladder specified in Gregory (see p. 330)
+    betas = np.array([1.0, 0.7525, 0.505, 0.2575, 0.01])
+    ntemps = len(betas)
+    sampler = emcee.PTSampler(ntemps, nwalkers, ndim, general_loglikelihood, log_prior, 
+                          betas = betas, 
+                          loglargs=[mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor], loglkwargs={'withlaserskew': withlaserskew}, logpkwargs={'priors': prior})
+    starting_positions = np.tile(guesses, (ntemps,nwalkers,1)) + 1e-4*np.random.randn(ntemps, nwalkers, ndim)
+        
+    sampler.run_mcmc(starting_positions, nsteps)
+    return sampler
+
+def Walkers_Parallel_Tempered_Decay(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
+    """
+    This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
+    and 1e-3 for gaus_var when withlaserskew=True.
+
+    Parameters:
+        mN1_data: fluoresence data for each time step (RRDataContainer)
+        guesses: the initial guesses for the parameters of the model (array of floats)
+        time_min: minimum Raman-Rabi pulse time (float)
+        time_max: maximum Raman-Rabi pulse time (float)
+        fromcsv: marks whether these data were read from a CSV file (bool)
+        dataN: number of experiment repititions summed (int)
+        runN: number of runs over which the experiment was done (int)
+        gaus_var: variance of the gaussian that defines the starting positions (float)
+        nwalkers: the number of walkers with which to sample (int)
+        nsteps: the number of steps each walker should take (int)
+        withlaserskew (optional): marks whether to use laserskew functions or not (bool) 
+        priors (optional): an array specifying the priors to use in log_prior
+
+    Returns:
+       sampler: the sampler object which now contains the samples taken by nwalkers
+           walkers over nsteps steps
+    """
+    ndim = len(guesses)
+    # use temperature ladder specified in Gregory (see p. 330)
+    betas = np.array([1.0, 0.7525, 0.505, 0.2575, 0.01])
+    ntemps = len(betas)
+    sampler = emcee.PTSampler(ntemps, nwalkers, ndim, decay_loglikelihood, log_prior, 
+                          betas = betas, 
+                          loglargs=[mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor], loglkwargs={'withlaserskew': withlaserskew}, logpkwargs={'priors': prior})
+    starting_positions = np.tile(guesses, (ntemps,nwalkers,1)) + 1e-4*np.random.randn(ntemps, nwalkers, ndim)
+        
+    sampler.run_mcmc(starting_positions, nsteps)
+    return sampler
     
 def sampler_to_dataframe(sampler, withlaserskew = False, burn_in_time = 0):
     """
