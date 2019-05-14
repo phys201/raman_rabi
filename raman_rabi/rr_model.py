@@ -90,9 +90,10 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, r
     time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
     if withlaserskew:
-        mu_mat = np.multiply(mu_mat,a_vec)
+        mu_mat = np.multiply(mu_mat, a_vec)
     z_data = (mN1_data - mu_mat)/np.sqrt(mu_mat)
-    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(z_data**2)/2.
+    #included the new part from the paper
+    loglikelihood = np.log( (2*np.pi)**(-len(mN1_data)/2) ) - np.sum(np.log(np.sqrt(mu_mat))) - np.sum(z_data**2)/2.
     return loglikelihood
 
 
