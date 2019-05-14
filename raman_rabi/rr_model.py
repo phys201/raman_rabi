@@ -3,6 +3,7 @@ import numpy as np
 from numpy import random
 import pandas as pd
 import emcee
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 """
@@ -401,4 +402,30 @@ def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
         plt.plot(np.array([laserskew_df.iloc[:,4][i] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$ for $A_5$')
         plt.show()
+    
+def pairplot_oscillation_params(samples,filename=None):
+    """
+    Produce a pairplot of the three oscillation parameters of interest
+    (Omega_h, A_h, and Gamma_deph)
+
+    Parameters:
+        samples: a dataframe produced from an emcee sampler using 
+            rr_model.sampler_to_dataframe (dataframe)
+        filename (optional): the filename to which to save the plot produced
+
+    Returns:
+        plot: a pyplot plot shown on the screen
+        file: a file with the name <filename> containing the plot
+    """
+    sns.set(font_scale=2)
+    threevar_pairplot = sns.pairplot(samples, 
+            x_vars=['Ah', 'Oh', 'Gd'], 
+            y_vars=['Ah', 'Oh', 'Gd'],
+            height=5, markers='.')
+    threevar_pairplot = threevar_pairplot.map_offdiag(plt.scatter, s=5, alpha=0.3)
+    threevar_pairplot = threevar_pairplot.map_diag(plt.hist,
+            histtype='stepfilled',bins=10)
+    plt.show()
+    if filename:
+        plt.savefig(filename)
     
