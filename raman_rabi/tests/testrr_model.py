@@ -41,23 +41,6 @@ class TestRR_MODEL(TestCase):
                                                 1/8.5871, dataN, runN)[0]
         self.assertTrue(s_likelihood > s2_likelihood)
 
-    def test_loglikelihood_for_nonesense(self):
-        # previously estimated parameters:
-        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
-        # generate some data
-        dataN = 10 # so this will be mN = +1 data
-        runN = 1200 # so this will be mN = +1
-        test_data = rr_model.generate_test_data(theta, 161, 500, 0, 40, 
-                                                dataN, runN)
-        scale_factor = 100*100
-        # initial guess with a deliberately bad parameter
-        bad_guess = theta
-        bad_guess[0] = -100
-        # calculate loglikelihood
-        loglikelihood = rr_model.general_loglikelihood(bad_guess,
-                test_data, 0, 40, False, dataN, runN, scale_factor)
-        self.assertTrue(np.isnan(loglikelihood))
-
     def test_unbinned_loglikelihood_mN1(self):
         theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
         time_min = 0
@@ -174,48 +157,48 @@ class TestRR_MODEL(TestCase):
 
 
 
-    def test_parameter_estimation(self):
-        # previously estimated parameters:
-        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
+    #def test_parameter_estimation(self):
+    #    # previously estimated parameters:
+    #    theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
 
-        # generate some data
-        np.random.seed(0)
-        dataN = 10 # so this is mN = +1
-        runN = 1200 # so this is mN = +1
-        test_data = rr_model.generate_test_data(theta, 161, 30, 0, 40, 
-                                                dataN, runN)
+    #    # generate some data
+    #    np.random.seed(0)
+    #    dataN = 10 # so this is mN = +1
+    #    runN = 1200 # so this is mN = +1
+    #    test_data = rr_model.generate_test_data(theta, 161, 30, 0, 40, 
+    #                                            dataN, runN)
 
-        # run MCMC on the test data and see if it's pretty close to the original theta
-        guesses = theta
-        numdim = len(guesses)
-        numwalkers = 12
-        numsteps = 10
-        gaus_var = 1e-4
+    #    # run MCMC on the test data and see if it's pretty close to the original theta
+    #    guesses = theta
+    #    numdim = len(guesses)
+    #    numwalkers = 12
+    #    numsteps = 10
+    #    gaus_var = 1e-4
 
-        np.random.seed(0)
-        test_samples = rr_model.Walkers_Sampler(test_data, guesses, 0, 40, False, 
-                                    dataN, runN, gaus_var, 
-                                    numwalkers, numsteps)
-        samples = test_samples.chain[:,:,:]
-        traces = samples.reshape(-1, numdim).T
-        parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 
-            'Gammap': traces[2], 'Ah': traces[3], 
-            'Omegah': traces[4], 'Gammadeph': traces[5]})
-        
-        MAP = parameter_samples.quantile([0.50], axis=0)
+    #    np.random.seed(0)
+    #    test_samples = rr_model.Walkers_Sampler(test_data, guesses, 0, 40, False, 
+    #                                dataN, runN, gaus_var, 
+    #                                numwalkers, numsteps)
+    #    samples = test_samples.chain[:,:,:]
+    #    traces = samples.reshape(-1, numdim).T
+    #    parameter_samples = pd.DataFrame({'BG': traces[0], 'Ap': traces[1], 
+    #        'Gammap': traces[2], 'Ah': traces[3], 
+    #        'Omegah': traces[4], 'Gammadeph': traces[5]})
+    #    
+    #    MAP = parameter_samples.quantile([0.50], axis=0)
 
-        self.assertTrue(np.isclose(MAP['BG'].values[0],
-                                    6.09997279257,atol=0.01,rtol=0.01))
-        self.assertTrue(np.isclose(MAP['Ap'].values[0],
-                                    16.6881061285,atol=0.01,rtol=0.01))
-        self.assertTrue(np.isclose(MAP['Gammap'].values[0],
-                                    0.015545312232,atol=0.01,rtol=0.01))
-        self.assertTrue(np.isclose(MAP['Ah'].values[0],
-                                    5.01878368798,atol=0.01,rtol=0.01))
-        self.assertTrue(np.isclose(MAP['Omegah'].values[0],
-                                    -0.358125323475,atol=0.01,rtol=0.01))
-        self.assertTrue(np.isclose(MAP['Gammadeph'].values[0],
-                                    0.116419769496,atol=0.01,rtol=0.01))
+    #    self.assertTrue(np.isclose(MAP['BG'].values[0],
+    #                                6.09997279257,atol=0.01,rtol=0.01))
+    #    self.assertTrue(np.isclose(MAP['Ap'].values[0],
+    #                                16.6881061285,atol=0.01,rtol=0.01))
+    #    self.assertTrue(np.isclose(MAP['Gammap'].values[0],
+    #                                0.015545312232,atol=0.01,rtol=0.01))
+    #    self.assertTrue(np.isclose(MAP['Ah'].values[0],
+    #                                5.01878368798,atol=0.01,rtol=0.01))
+    #    self.assertTrue(np.isclose(MAP['Omegah'].values[0],
+    #                                -0.358125323475,atol=0.01,rtol=0.01))
+    #    self.assertTrue(np.isclose(MAP['Gammadeph'].values[0],
+    #                                0.116419769496,atol=0.01,rtol=0.01))
 
     def test_laserskew_parameter_estimation(self):
         data_length = 4
