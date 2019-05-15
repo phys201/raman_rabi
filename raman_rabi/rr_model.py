@@ -535,3 +535,7 @@ def pairplot_oscillation_params(samples,filename=None):
     if filename:
         plt.savefig(filename)
     
+#def plot_fit_and_data(mapvals,data,steps,time_min,time_max):
+#    data_df = data.get_df()
+
+    
