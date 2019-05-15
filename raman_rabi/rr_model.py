@@ -305,7 +305,7 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
         else:
             return logprior + loglikelihood
 
-def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew = False, priors=None):
+def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew=False, priors=None):
     """
     This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
     and 1e-3 for gaus_var when withlaserskew=True.
@@ -330,6 +330,7 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
     """
     ndim = len(guesses)
     starting_positions = [guesses + gaus_var*np.random.randn(ndim) for i in range(nwalkers)]
+    #print(starting_positions)
     if withlaserskew == False:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, 
                 args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
@@ -339,7 +340,10 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
                 args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
                 kwargs={'priors':priors})
 
-        sampler.run_mcmc(starting_positions, nsteps)
+    sampler.run_mcmc(starting_positions, nsteps)
+    print('sampler:',sampler)
+    print('sampler chain:',sampler.chain)
+    print('sampler flatchain:',sampler.flatchain)
     return sampler
 
 def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
