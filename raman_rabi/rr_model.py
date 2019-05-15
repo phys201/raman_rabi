@@ -10,6 +10,10 @@ import matplotlib.pyplot as plt
 This submodule provides the generative model (Model 1) for the Raman-Rabi data as well as
 an MCMC sampler complete with log-prior and log-posterior functions for Model 1.
 
+It also provides the alternative model (two kinds of incoherent decay) for the same data. It goes on to
+provide parallel tempered sampling such that the logarithm of the global likelihood can breadily be
+obtained for model comparison.
+
 Note: theta is a list of the input parameters for the model in the following form
     'B_G','A_p', 'Gamma_p' , 'A_h', 'Omega_h', 'Gamma_deph','Skew'
 """
@@ -48,11 +52,10 @@ def decay_model(steps, time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2):
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
         BG: background fluoresence parameter (float)
-        Ap: parasitic loss strength parameter (float)
-        Gammap: parasitic loss time-scale parameter (float)
-        Ah: hyperfine flip-flop strength parameter (float)
-        Omegah: hyperfine flip-flop time-scale parameter (float)
-        Gammadeph: Raman-Rabi dephasing time-scale parameter (float)
+        Ap1: parasitic loss strength parameter (float)
+        Gammap1: parasitic loss time-scale parameter (float)
+        Ap2: parasitic loss strength parameter (float)
+        Gammap2: parasitic loss time-scale parameter (float)
 
     Returns:
         time: the time points at which the simulated readouts were taken (array of floats)
@@ -208,7 +211,6 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, run
     mu_mat = np.tile(mu, (samples, 1))
     if include_laserskews:
         mu_mat = np.multiply(mu_mat,laserskews[:,None])
-    #test_data = dataN*(mu_mat + uncertainty)/scale_factor
     test_data = (mu_mat + uncertainty)/runN
     return pd.DataFrame(test_data)
 
