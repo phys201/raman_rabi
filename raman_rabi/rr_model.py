@@ -22,7 +22,7 @@ def ideal_model(steps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph
     """
     The generative model for the Raman-Rabi data, before adding noise. Gaussian noise
     is added by generate_test_data, below.
-    
+
     Parameters:
         steps: the number of time divisions to use in the simulated data (int)
         time_min: minimum Raman-Rabi pulse time (float)
@@ -46,7 +46,7 @@ def decay_model(steps, time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2):
     """
     The generative model for the Raman-Rabi data, before adding noise. Gaussian noise
     is added by generate_test_data, below.
-    
+
     Parameters:
         steps: the number of time divisions to use in the simulated data (int)
         time_min: minimum Raman-Rabi pulse time (float)
@@ -69,7 +69,7 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
     """
     The likelihood function of mN1 spin Raman-Rabi electronic-nuclear flip-flop data, assuming only shot noise from
     continuous fluoresence spectrum (Poisson distribution becomes Gaussian
-    
+
     Parameters:
         mN1_data: fluoresence data for each time step (RRDataContainer)
         time_min: minimum Raman-Rabi pulse time (float)
@@ -126,7 +126,7 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, r
     if withlaserskew:
         a_vec = np.array(theta[6:len(theta)])
         a_vec.shape = (len(a_vec), 1)
-    
+
     if fromcsv:
         mN1_data = mN1_data.get_df().values
     else:
@@ -165,7 +165,7 @@ def decay_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, run
     if withlaserskew:
         a_vec = np.array(theta[5:len(theta)])
         a_vec.shape = (len(a_vec), 1)
-    
+
     if fromcsv:
         mN1_data = mN1_data.get_df().values
     else:
@@ -244,7 +244,7 @@ def log_prior(theta, priors=None):
                 logprior_arr.append(0)
         else:
             print('>>> Unknown prior specified')
-            
+
     return np.sum(logprior_arr)
 
 
@@ -270,8 +270,8 @@ def log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN, runN, sca
     if np.isnan(logprior) or not np.isfinite(logprior):
         return -np.inf
     loglikelihood = general_loglikelihood(theta, mN1_data, time_min, 
-                                                            time_max, fromcsv, dataN, runN,
-                                                            scale_factor=100*100)
+            time_max, fromcsv, dataN, runN,
+            scale_factor=100*100)
     if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior) or np.isnan(logprior+loglikelihood):
         return -np.inf
     else:
@@ -299,7 +299,7 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
         return -np.inf
     else:
         loglikelihood = general_loglikelihood(theta, mN1_data, time_min, time_max, 
-            fromcsv, dataN, runN, scale_factor=scale_factor, withlaserskew=True)
+                fromcsv, dataN, runN, scale_factor=scale_factor, withlaserskew=True)
         if np.isnan(loglikelihood) or not np.isfinite(loglikelihood) or np.isnan(logprior) or not np.isfinite(logprior):
             return -np.inf
         else:
@@ -332,14 +332,14 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
     starting_positions = [guesses + gaus_var*np.random.randn(ndim) for i in range(nwalkers)]
     if withlaserskew == False:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_posterior, 
-                                args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
-                                kwargs={'priors':priors})
+                args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
+                kwargs={'priors':priors})
     else:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, laserskew_log_posterior, 
-                                args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
-                                kwargs={'priors':priors})
-        
-    sampler.run_mcmc(starting_positions, nsteps)
+                args=[mN1_data, time_min, time_max, fromcsv, dataN, runN],
+                kwargs={'priors':priors})
+
+        sampler.run_mcmc(starting_positions, nsteps)
     return sampler
 
 def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
@@ -370,10 +370,10 @@ def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, da
     betas = np.array([1.0, 0.7525, 0.505, 0.2575, 0.01])
     ntemps = len(betas)
     sampler = emcee.PTSampler(ntemps, nwalkers, ndim, general_loglikelihood, log_prior, 
-                          betas = betas, 
-                          loglargs=[mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor], loglkwargs={'withlaserskew': withlaserskew}, logpkwargs={'priors': prior})
+            betas = betas, 
+            loglargs=[mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor], loglkwargs={'withlaserskew': withlaserskew}, logpkwargs={'priors': prior})
     starting_positions = np.tile(guesses, (ntemps,nwalkers,1)) + 1e-4*np.random.randn(ntemps, nwalkers, ndim)
-        
+
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
 
@@ -405,13 +405,13 @@ def Walkers_Parallel_Tempered_Decay(mN1_data, guesses, time_min, time_max, fromc
     betas = np.array([1.0, 0.7525, 0.505, 0.2575, 0.01])
     ntemps = len(betas)
     sampler = emcee.PTSampler(ntemps, nwalkers, ndim, decay_loglikelihood, log_prior, 
-                          betas = betas, 
-                          loglargs=[mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor], loglkwargs={'withlaserskew': withlaserskew}, logpkwargs={'priors': prior})
+            betas = betas, 
+            loglargs=[mN1_data, time_min, time_max, fromcsv, dataN, runN, scale_factor], loglkwargs={'withlaserskew': withlaserskew}, logpkwargs={'priors': prior})
     starting_positions = np.tile(guesses, (ntemps,nwalkers,1)) + 1e-4*np.random.randn(ntemps, nwalkers, ndim)
-        
+
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
-    
+
 def sampler_to_dataframe(sampler, withlaserskew = False, burn_in_time = 0):
     """
     This function transforms sampler into pandas dataframe
@@ -448,13 +448,13 @@ def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
 
     """
-    
+
     if withlaserskew == True:
         df, laserskew_df = sampler_to_dataframe(sampler, withlaserskew)
     else:
         df = sampler_to_dataframe(sampler, withlaserskew)
-    
-    
+
+
     plt.figure()
     plt.plot(np.array([df['BG'].loc[i] for i in range(nwalkers)]).T)
     plt.title(r'Burn in for $B_G$')
@@ -479,38 +479,38 @@ def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
     plt.plot(np.array([df['Oh'].loc[i] for i in range(nwalkers)]).T)
     plt.title(r'Burn in for $\Omega_h$')
     plt.show()
-    
+
     plt.figure()
     plt.plot(np.array([df['Gd'].loc[i] for i in range(nwalkers)]).T)
     plt.title(r'Burn in for $\Gamma_{deph}$')
     plt.show()
-    
+
     if withlaserskew == True:
         plt.figure()
         plt.plot(np.array([laserskew_df.iloc[:,0][i] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$ for $A_1$')
         plt.show()
-        
+
         plt.figure()
         plt.plot(np.array([laserskew_df.iloc[:,1][i] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$ for $A_2$')
         plt.show()
-        
+
         plt.figure()
         plt.plot(np.array([laserskew_df.iloc[:,2][i] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$ for $A_3$')
         plt.show()
-        
+
         plt.figure()
         plt.plot(np.array([laserskew_df.iloc[:,3][i] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$ for $A_4$')
         plt.show()
-        
+
         plt.figure()
         plt.plot(np.array([laserskew_df.iloc[:,4][i] for i in range(nwalkers)]).T)
         plt.title(r'Burn in for $Skew$ for $A_5$')
         plt.show()
-    
+
 def pairplot_oscillation_params(samples,filename=None):
     """
     Produce a pairplot of the three oscillation parameters of interest
@@ -536,4 +536,49 @@ def pairplot_oscillation_params(samples,filename=None):
     plt.show()
     if filename:
         plt.savefig(filename)
-    
+
+def plot_fit_and_data(mapvals,burned_in_samples,data,steps,time_min,time_max,dataN,scale_factor=100*100):
+    """
+    Plot the theoretical prediction with MAP fit parameters along with un-averaged
+    data
+
+    Parameters:
+        mapvals: the MAP model parameters from an MCMC calculation (array of floats)
+        burned_in_samples: the MCMC sample chain from which the MAP values were computed (array of floats)
+        data: the real data to plot against the prediction (RRDataContainer)
+        steps: the number of time steps in each run in the data (int)
+        time_min: the first time bin in microseconds (float)
+        time_max: the last time bin in microseconds (float)
+        dataN: the number of data points over which the data were averaged (int)
+        scale_factor: the conversion between fluorescence readout and number of nuclei (float)
+
+    Returns:
+        plot: a pyplot plot shown on the screen
+    """
+    numdim = burned_in_samples.shape[2]
+    traces = burned_in_samples.reshape(-1,numdim).T
+    BG_MAP, Ap_MAP, Gammap_MAP, Ah_MAP, Omegah_MAP, Gammadeph_MAP = mapvals
+    time, mu = ideal_model(steps, time_min, time_max, 
+        BG_MAP, Ap_MAP, Gammap_MAP, Ah_MAP, Omegah_MAP, 
+        Gammadeph_MAP)
+    laserindex = np.argmin(np.abs(traces[0, :] - np.percentile(traces[0, :], 50)))
+    laserskewave = np.average(traces[6:, laserindex])
+    mu = mu*laserskewave #MOST IMPORTANT PART!!!!
+
+    #Plot over unaveraged data
+    plt.figure()
+    data_length = len(data.get_df())
+    for iii in range(data_length):
+        if iii == 0:
+            plt.scatter(time, data.get_df().values[iii, :]*scale_factor/dataN, color='C0', label='Raw Data')
+        else:
+            plt.scatter(time, data.get_df().values[iii, :]*scale_factor/dataN, color='C0')
+    plt.plot(time, mu, color='r', label='MCMC')
+    plt.legend()
+    plt.xlabel('Time [$\mu$s]', fontsize=15)
+    plt.ylabel('Fluorescence [A.U.]', fontsize=15)
+    #plt.title('$mN = +1$ Oscillation')
+    #plt.savefig('mN1_rawdata.png', bbox_inches = 'tight')
+    plt.show()
+
+
