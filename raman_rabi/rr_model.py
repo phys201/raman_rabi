@@ -18,7 +18,7 @@ Note: theta is a list of the input parameters for the model in the following for
     'B_G','A_p', 'Gamma_p' , 'A_h', 'Omega_h', 'Gamma_deph','Skew'
 """
 
-def ideal_model(steps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph):
+def ideal_model(steps, time_min, time_max, theta):
     """
     The generative model for the Raman-Rabi data, before adding noise. Gaussian noise
     is added by generate_test_data, below.
@@ -27,17 +27,13 @@ def ideal_model(steps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph
         steps: the number of time divisions to use in the simulated data (int)
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
-        BG: background fluoresence parameter (float)
-        Ap: parasitic loss strength parameter (float)
-        Gammap: parasitic loss time-scale parameter (float)
-        Ah: hyperfine flip-flop strength parameter (float)
-        Omegah: hyperfine flip-flop time-scale parameter (float)
-        Gammadeph: Raman-Rabi dephasing time-scale parameter (float)
+        theta: a dict containing the six parameters BG, Ap, Gp, Ah, Oh, Gd (dict)
 
     Returns:
         time: the time points at which the simulated readouts were taken (array of floats)
         mu: the values of the readout at each time point (array of floats)
     """
+    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
     time = np.linspace(time_min, time_max, steps)
     mu = BG + Ap*np.exp(-Gammap*time) + Ah*np.cos(Omegah*time)*np.exp(-Gammadeph*time)
     return time, mu
@@ -65,7 +61,8 @@ def decay_model(steps, time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2):
     mu = BG + Ap1*np.exp(-Gammap1*time) + Ap2*np.exp(-Gammap2*time)
     return time, mu
 
-def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph, dataN, runN, scale_factor=100*100):
+def likelihood_mN1(mN1_data, time_min, time_max, theta, dataN, runN, scale_factor=100*100):
+
     """
     The likelihood function of mN1 spin Raman-Rabi electronic-nuclear flip-flop data, assuming only shot noise from
     continuous fluoresence spectrum (Poisson distribution becomes Gaussian
@@ -74,12 +71,7 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
         mN1_data: fluoresence data for each time step (RRDataContainer)
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
-        BG: background fluoresence parameter (float)
-        Ap: parasitic loss strength parameter (float)
-        Gammap: parasitic loss time-scale parameter (float)
-        Ah: hyperfine flip-flop strength parameter (float)
-        Omegah: hyperfine flip-flop time-scale parameter (float)
-        Gammadeph: Raman-Rabi dephasing time-scale parameter (float)
+        theta: the model parameters to use in this log-posterior calculation (array)
         dataN: number of experiment repititions summed (int)
         runN: number of runs over which the experiment was done (int)
         scale_factor (optional): nuclear spin signal multiplier (float)
@@ -88,13 +80,14 @@ def likelihood_mN1(mN1_data, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gam
         likelihood: the value of the likelihood function with these parameters (float)
         mu: the values of the model given these parameters (array of floats)
     """
+    BG, Ap, Gammap, Ah, Omegah, Gammadeph = theta[0:6]
     mN1_size = mN1_data.get_df().shape[0]
     BG = BG*runN*dataN*mN1_size/scale_factor
     Ap = Ap*runN*dataN*mN1_size/scale_factor
     Ah = Ah*runN*dataN*mN1_size/scale_factor
-    #mN1_data = scale_factor*np.sum(mN1_data.get_df()) / (dataN*mN1_size)
+    newtheta = [BG, Ap, Gammap, Ah, Omegah, Gammadeph]
     mN1_data = runN*np.sum(mN1_data.get_df())
-    time, mu = ideal_model(len(mN1_data), time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
+    time, mu = ideal_model(len(mN1_data), time_min, time_max, newtheta)
 
     #we make data into unit normal distribution, uncertainty sigma of shot noise = sqrt(mu)
     z_data = (mN1_data - mu)/np.sqrt(mu)
@@ -123,6 +116,7 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, r
     BG = BG*runN*dataN/scale_factor
     Ap = Ap*runN*dataN/scale_factor
     Ah = Ah*runN*dataN/scale_factor
+    newtheta = [BG, Ap, Gammap, Ah, Omegah, Gammadeph]
     if withlaserskew:
         a_vec = np.array(theta[6:len(theta)])
         a_vec.shape = (len(a_vec), 1)
@@ -132,7 +126,7 @@ def general_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, r
     else:
         mN1_data = mN1_data.values
     mN1_data = runN*mN1_data
-    time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
+    time, mu = ideal_model(mN1_data.shape[1], time_min, time_max, newtheta)
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
     if withlaserskew:
         mu_mat = np.multiply(mu_mat, a_vec)
@@ -203,9 +197,10 @@ def generate_test_data(theta, timesteps, samples, time_min, time_max, dataN, run
     BG = BG*runN*dataN/scale_factor
     Ap = Ap*runN*dataN/scale_factor
     Ah = Ah*runN*dataN/scale_factor
+    newtheta = [BG,Ap,Gammap,Ah,Omegah,Gammadeph]
     if include_laserskews:
         laserskews = theta[6:]
-    time, mu = ideal_model(timesteps, time_min, time_max, BG, Ap, Gammap, Ah, Omegah, Gammadeph)
+    time, mu = ideal_model(timesteps, time_min, time_max, newtheta)
     uncertainty = np.random.normal(scale=np.sqrt(mu), size=(samples, timesteps))
 
     mu_mat = np.tile(mu, (samples, 1))
