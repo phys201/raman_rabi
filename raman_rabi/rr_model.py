@@ -418,6 +418,7 @@ def sampler_to_dataframe(sampler, withlaserskew = False, burn_in_time = 0):
     Parameters:
         sampler: the object which contains the samples (emcee sampler)
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
+        burn_in_time (optional): the number of samples it took to burn in (int)
 
     Returns:(if withlaserskew = True)
        df: the pandas data frame object which now contains the samples taken by nwalkers
@@ -439,7 +440,8 @@ def sampler_to_dataframe(sampler, withlaserskew = False, burn_in_time = 0):
 
 def plot_params_burnin(sampler, nwalkers, withlaserskew = False):
     """
-    This function plots the parameters burnin time
+    This function plots the positions of walkers to help determine burn-in
+    time.
 
     Parameters:
         sampler: the object which contains the samples (emcee sampler)
@@ -576,8 +578,5 @@ def plot_fit_and_data(mapvals,burned_in_samples,data,steps,time_min,time_max,dat
     plt.legend()
     plt.xlabel('Time [$\mu$s]', fontsize=15)
     plt.ylabel('Fluorescence [A.U.]', fontsize=15)
-    #plt.title('$mN = +1$ Oscillation')
     #plt.savefig('mN1_rawdata.png', bbox_inches = 'tight')
     plt.show()
-
-
