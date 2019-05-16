@@ -530,10 +530,16 @@ def pairplot_oscillation_params(samples,filename=None):
         file: a file with the name <filename> containing the plot
     """
     sns.set(font_scale=2)
-    threevar_pairplot = sns.pairplot(samples, 
-            x_vars=['Ah', 'Oh', 'Gd'], 
-            y_vars=['Ah', 'Oh', 'Gd'],
-            height=5, markers='.')
+    if sns.__version__ == '0.9.0':
+        threevar_pairplot = sns.pairplot(samples, 
+                x_vars=['Ah', 'Oh', 'Gd'], 
+                y_vars=['Ah', 'Oh', 'Gd'],
+                height=5, markers='.')
+    else:
+        threevar_pairplot = sns.pairplot(samples, 
+                x_vars=['Ah', 'Oh', 'Gd'], 
+                y_vars=['Ah', 'Oh', 'Gd'],
+                size=5, markers='.')
     threevar_pairplot = threevar_pairplot.map_offdiag(plt.scatter, s=5, alpha=0.3)
     threevar_pairplot = threevar_pairplot.map_diag(plt.hist,
             histtype='stepfilled',bins=10)
