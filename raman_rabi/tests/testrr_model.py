@@ -305,12 +305,15 @@ class TestRR_MODEL(TestCase):
                                           'Gammadeph': traces[5] })
         laserskew_samples = pd.DataFrame(traces[6:].T)
         MAP = parameter_samples.quantile([0.50], axis=0)
+        mapvals = np.array([MAP['BG'].values[0],MAP['Ap'].values[0],
+                            MAP['Gammap'].values[0], MAP['Ah'].values[0],
+                            MAP['Omegah'].values[0],MAP['Gammadeph'].values[0]])
 
-        correct_values = np.array([ 5.01886051,  5.01886946,  0.0155624 ,  
-                                    5.01886776,  0.01558876, 0.01557422])
+        correct_values = np.array([ 0.0155624, 5.01886946, 0.01558876, 5.01886051,  
+                                    0.01557422, 5.01886776])
 
-        for pair in zip(correct_values,MAP.values[0]):
-            self.assertAlmostEqual(pair[0],pair[1])
+        for pair in zip(correct_values,mapvals):
+            self.assertTrue(np.isclose(pair[1], pair[0],atol=0.01,rtol=0.01)) 
 
     def test_decay_model(self):
         steps = 3
@@ -367,7 +370,14 @@ class TestRR_MODEL(TestCase):
                                           'Ap2': traces[3],
                                           'Gammap2': traces[4]})
         MAP = parameter_samples.quantile([0.50], axis=0)
-        correct_values = [ 5.00001138,  5.9999919 ,  0.01498221,  0.01498512,  0.02496801]
+        mapvals = np.array([MAP['BG'].values[0],MAP['Ap1'].values[0],
+                           MAP['Gammap1'].values[0],MAP['Ap1'].values[0],
+                           MAP['Gammap2'].values[0]])
+        correct_values = np.array([ 0.01498221,  
+                                    5.00001138,  
+                                    0.01498512,  
+                                    5.00001138,  
+                                    0.02496801])
         
-        for pair in zip(MAP.values[0],correct_values):
-            self.assertAlmostEqual(pair[0],pair[1])
+        for pair in zip(mapvals,correct_values):
+            self.assertTrue(np.isclose(pair[0], pair[1],atol=0.01,rtol=0.01)) 
