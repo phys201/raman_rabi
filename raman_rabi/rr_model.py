@@ -38,7 +38,7 @@ def ideal_model(steps, time_min, time_max, theta):
     mu = BG + Ap*np.exp(-Gammap*time) + Ah*np.cos(Omegah*time)*np.exp(-Gammadeph*time)
     return time, mu
 
-def decay_model(steps, time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2):
+def decay_model(steps, time_min, time_max, theta):
     """
     The generative model for the Raman-Rabi data, before adding noise. Gaussian noise
     is added by generate_test_data, below.
@@ -47,16 +47,18 @@ def decay_model(steps, time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2):
         steps: the number of time divisions to use in the simulated data (int)
         time_min: minimum Raman-Rabi pulse time (float)
         time_max: maximum Raman-Rabi pulse time (float)
-        BG: background fluoresence parameter (float)
-        Ap1: parasitic loss strength parameter (float)
-        Gammap1: parasitic loss time-scale parameter (float)
-        Ap2: parasitic loss strength parameter (float)
-        Gammap2: parasitic loss time-scale parameter (float)
+        theta: array of parameters, in the following order:
+            BG: background fluoresence parameter (float)
+            Ap1: parasitic loss strength parameter (float)
+            Gammap1: parasitic loss time-scale parameter (float)
+            Ap2: parasitic loss strength parameter (float)
+            Gammap2: parasitic loss time-scale parameter (float)
 
     Returns:
         time: the time points at which the simulated readouts were taken (array of floats)
         mu: the values of the readout at each time point (array of floats)
     """
+    BG, Ap1, Gammap1, Ap2, Gammap2 = theta[0:5]
     time = np.linspace(time_min, time_max, steps)
     mu = BG + Ap1*np.exp(-Gammap1*time) + Ap2*np.exp(-Gammap2*time)
     return time, mu
@@ -156,6 +158,7 @@ def decay_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, run
     BG = BG*runN*dataN/scale_factor
     Ap1 = Ap1*runN*dataN/scale_factor
     Ap2 = Ap2*runN*dataN/scale_factor
+    newtheta = [BG,Ap1,Gammap1,Ap2,Gammap2]
     if withlaserskew:
         a_vec = np.array(theta[5:len(theta)])
         a_vec.shape = (len(a_vec), 1)
@@ -165,7 +168,7 @@ def decay_loglikelihood(theta, mN1_data, time_min, time_max, fromcsv, dataN, run
     else:
         mN1_data = mN1_data.values
     mN1_data = runN*mN1_data
-    time, mu = decay_model(mN1_data.shape[1], time_min, time_max, BG, Ap1, Gammap1, Ap2, Gammap2)
+    time, mu = decay_model(mN1_data.shape[1], time_min, time_max, newtheta)
     mu_mat = np.tile(mu, (mN1_data.shape[0], 1))
     if withlaserskew:
         mu_mat = np.multiply(mu_mat, a_vec)
@@ -357,8 +360,8 @@ def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, da
         gaus_var: variance of the gaussian that defines the starting positions (float)
         nwalkers: the number of walkers with which to sample (int)
         nsteps: the number of steps each walker should take (int)
+        priors: an array specifying the priors to use in log_prior
         withlaserskew (optional): marks whether to use laserskew functions or not (bool) 
-        priors (optional): an array specifying the priors to use in log_prior
 
     Returns:
        sampler: the sampler object which now contains the samples taken by nwalkers

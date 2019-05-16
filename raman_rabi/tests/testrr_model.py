@@ -274,3 +274,100 @@ class TestRR_MODEL(TestCase):
         self.assertTrue(np.isclose(laserskew_MAP[3].values[0],
                         0.544642527582,atol=0.01,rtol=0.01)) 
 
+    def test_parallel_tempered_walkers(self):
+        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
+        time_min = 0
+        time_max = 40
+        fromcsv = True
+        dataN = 10
+        runN = 1200
+        gaus_var = 1e-3
+        nwalkers = 12
+        nsteps = 10
+        priors = [  ['uniform',0, +np.inf], # BG
+                    ['uniform',0,+np.inf], # Ap
+                    ['uniform',0.0,+np.inf], # Gammap
+                    ['uniform',0,+np.inf], # Ah
+                    ['uniform',-np.inf, 0],# Omegah
+                    ['uniform',0.0,+np.inf]] # Gammadephp
+
+        np.random.seed(0)
+        results = rr_model.Walkers_Parallel_Tempered(RRData,theta,time_min,time_max,fromcsv,
+                                                     dataN,runN,gaus_var,nwalkers,nsteps,
+                                                     priors)
+        samples = results.chain[:,:,:]
+        traces = samples.reshape(-1, samples.shape[2]).T
+        parameter_samples = pd.DataFrame({'BG': traces[0],
+                                          'Ap': traces[1],
+                                          'Gammap': traces[2],
+                                          'Ah': traces[3],
+                                          'Omegah': traces[4],
+                                          'Gammadeph': traces[5] })
+        laserskew_samples = pd.DataFrame(traces[6:].T)
+        MAP = parameter_samples.quantile([0.50], axis=0)
+
+        correct_values = np.array([ 5.01886051,  5.01886946,  0.0155624 ,  
+                                    5.01886776,  0.01558876, 0.01557422])
+
+        for pair in zip(correct_values,MAP.values[0]):
+            self.assertAlmostEqual(pair[0],pair[1])
+
+    def test_decay_model(self):
+        steps = 3
+        time_min = 0
+        time_max = 3
+        theta = [0.015,5.0,0.015,6.0,0.025]
+        np.random.seed(0)
+        decay_model_result = rr_model.decay_model(steps,time_min,time_max,theta)[1]
+        correct_values = [ 11.015, 10.68292269, 10.36144833]
+        for pair in zip(decay_model_result,correct_values):
+            self.assertAlmostEqual(pair[0],pair[1])
+
+    def test_decay_loglikelihood(self):
+        theta = [0.015,5.0,0.015,6.0,0.025]
+        time_min = 0
+        time_max = 40
+        fromcsv = True
+        dataN = 10
+        runN = 1200
+        scale_factor = 100*100
+
+        decay_loglikelihood_result = rr_model.decay_loglikelihood(theta,RRData,time_min,time_max,
+                                                                  fromcsv,dataN,runN,
+                                                                  scale_factor)
+        correct_value = -63150.8915991
+        self.assertAlmostEqual(decay_loglikelihood_result,correct_value)
+
+    def test_parallel_tempered_walkers_decay(self):
+        theta = [0.015,5.0,0.015,6.0,0.025]
+        time_min = 0
+        time_max = 40
+        fromcsv = True
+        dataN = 10
+        runN = 1200
+        gaus_var = 1e-3
+        nwalkers = 14
+        nsteps = 10
+        priors = [  ['uniform',0, +np.inf], # BG
+                    ['uniform',0,+np.inf], # Ap1
+                    ['uniform',0.0,+np.inf], # Gammap1
+                    ['uniform',0,+np.inf], # Ap2
+                    ['uniform',0.0,+np.inf]] # Gammap2
+
+        np.random.seed(0)
+        results = rr_model.Walkers_Parallel_Tempered_Decay(RRData,theta,time_min,time_max,
+                                                           fromcsv,dataN,runN,gaus_var,
+                                                           nwalkers,nsteps,priors)
+
+        samples = results.chain[:,:,:]
+        traces = samples.reshape(-1, samples.shape[2]).T
+        parameter_samples = pd.DataFrame({'BG': traces[0],
+                                          'Ap1': traces[1],
+                                          'Gammap1': traces[2],
+                                          'Ap2': traces[3],
+                                          'Gammap2': traces[4]})
+        MAP = parameter_samples.quantile([0.50], axis=0)
+        correct_values = [ 5.00001138,  5.9999919 ,  0.01498221,  0.01498512,  0.02496801]
+        
+        for pair in zip(MAP.values[0],correct_values):
+            self.assertAlmostEqual(pair[0],pair[1])
