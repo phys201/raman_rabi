@@ -303,7 +303,7 @@ def laserskew_log_posterior(theta, mN1_data, time_min, time_max, fromcsv, dataN,
         else:
             return logprior + loglikelihood
 
-def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew=False, priors=None):
+def walkers_sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, scale_factor=100*100, withlaserskew=False, priors=None):
     """
     This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
     and 1e-3 for gaus_var when withlaserskew=True.
@@ -344,7 +344,7 @@ def Walkers_Sampler(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN,
     print('sampler flatchain:',sampler.flatchain)
     return sampler
 
-def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
+def walkers_parallel_tempered(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
     """
     This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
     and 1e-3 for gaus_var when withlaserskew=True.
@@ -379,7 +379,7 @@ def Walkers_Parallel_Tempered(mN1_data, guesses, time_min, time_max, fromcsv, da
     sampler.run_mcmc(starting_positions, nsteps)
     return sampler
 
-def Walkers_Parallel_Tempered_Decay(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
+def walkers_parallel_tempered_decay(mN1_data, guesses, time_min, time_max, fromcsv, dataN, runN, gaus_var, nwalkers, nsteps, prior, scale_factor=100*100, withlaserskew = False):
     """
     This function samples the posterior using MCMC. It is recommended to use 1e-4 for gaus_var when withlaserskew=False,
     and 1e-3 for gaus_var when withlaserskew=True.

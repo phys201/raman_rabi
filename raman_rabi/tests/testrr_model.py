@@ -171,7 +171,7 @@ class TestRR_MODEL(TestCase):
         gaus_var = 1e-4
 
         np.random.seed(0)
-        test_samples = rr_model.Walkers_Sampler(test_data, guesses, 0, 40, False, 
+        test_samples = rr_model.walkers_sampler(test_data, guesses, 0, 40, False, 
                                     dataN, runN, gaus_var, 
                                     numwalkers, numsteps)
         samples = test_samples.chain[:,:,:]
@@ -235,7 +235,7 @@ class TestRR_MODEL(TestCase):
         runN = 1200 # so this is mN = +1
         gaus_var = 1e-3
         laserskewed = True
-        test_samples = rr_model.Walkers_Sampler(test_data, guesses, 
+        test_samples = rr_model.walkers_sampler(test_data, guesses, 
                                                   0, 40, False, dataN, runN,
                                                   gaus_var, nwalkers=numwalkers, 
                                                   nsteps=numsteps, 
@@ -292,7 +292,7 @@ class TestRR_MODEL(TestCase):
                     ['uniform',0.0,+np.inf]] # Gammadephp
 
         np.random.seed(0)
-        results = rr_model.Walkers_Parallel_Tempered(RRData,theta,time_min,time_max,fromcsv,
+        results = rr_model.walkers_parallel_tempered(RRData,theta,time_min,time_max,fromcsv,
                                                      dataN,runN,gaus_var,nwalkers,nsteps,
                                                      priors)
         samples = results.chain[:,:,:]
@@ -355,7 +355,7 @@ class TestRR_MODEL(TestCase):
                     ['uniform',0.0,+np.inf]] # Gammap2
 
         np.random.seed(0)
-        results = rr_model.Walkers_Parallel_Tempered_Decay(RRData,theta,time_min,time_max,
+        results = rr_model.walkers_parallel_tempered_decay(RRData,theta,time_min,time_max,
                                                            fromcsv,dataN,runN,gaus_var,
                                                            nwalkers,nsteps,priors)
 
