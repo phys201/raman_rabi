@@ -541,7 +541,7 @@ def pairplot_oscillation_params(samples,filename=None):
     if filename:
         plt.savefig(filename)
 
-def plot_fit_and_data(mapvals,burned_in_samples,data,steps,time_min,time_max,dataN,scale_factor=100*100):
+def plot_fit_and_data(mapvals,burned_in_samples,data,steps,time_min,time_max,dataN,scale_factor=100*100,fromcsv=False):
     """
     Plot the theoretical prediction with MAP fit parameters along with un-averaged
     data
@@ -549,34 +549,42 @@ def plot_fit_and_data(mapvals,burned_in_samples,data,steps,time_min,time_max,dat
     Parameters:
         mapvals: the MAP model parameters from an MCMC calculation (array of floats)
         burned_in_samples: the MCMC sample chain from which the MAP values were computed (array of floats)
-        data: the real data to plot against the prediction (RRDataContainer)
+        data: the real data to plot against the prediction (RRDataContainer or Pandas DataFrame)
         steps: the number of time steps in each run in the data (int)
         time_min: the first time bin in microseconds (float)
         time_max: the last time bin in microseconds (float)
         dataN: the number of data points over which the data were averaged (int)
         scale_factor: the conversion between fluorescence readout and number of nuclei (float)
+        fromcsv: boolean indicating whether the data was read in from a file
 
     Returns:
         plot: a pyplot plot shown on the screen
     """
     numdim = burned_in_samples.shape[2]
     traces = burned_in_samples.reshape(-1,numdim).T
-    BG_MAP, Ap_MAP, Gammap_MAP, Ah_MAP, Omegah_MAP, Gammadeph_MAP = mapvals
+    #BG_MAP, Ap_MAP, Gammap_MAP, Ah_MAP, Omegah_MAP, Gammadeph_MAP = mapvals
     time, mu = ideal_model(steps, time_min, time_max, 
-        BG_MAP, Ap_MAP, Gammap_MAP, Ah_MAP, Omegah_MAP, 
-        Gammadeph_MAP)
+        mapvals)
     laserindex = np.argmin(np.abs(traces[0, :] - np.percentile(traces[0, :], 50)))
     laserskewave = np.average(traces[6:, laserindex])
     mu = mu*laserskewave #MOST IMPORTANT PART!!!!
 
     #Plot over unaveraged data
     plt.figure()
-    data_length = len(data.get_df())
-    for iii in range(data_length):
-        if iii == 0:
-            plt.scatter(time, data.get_df().values[iii, :]*scale_factor/dataN, color='C0', label='Raw Data')
-        else:
-            plt.scatter(time, data.get_df().values[iii, :]*scale_factor/dataN, color='C0')
+    if fromcsv:
+        data_length = len(data.get_df())
+        for iii in range(data_length):
+            if iii == 0:
+                plt.scatter(time, data.get_df().values[iii, :]*scale_factor/dataN, color='C0', label='Raw Data')
+            else:
+                plt.scatter(time, data.get_df().values[iii, :]*scale_factor/dataN, color='C0')
+    else:
+        data_length = len(data.values)
+        for iii in range(data_length):
+            if iii == 0:
+                plt.scatter(time, data.values[iii, :]*scale_factor/dataN, color='C0', label='Raw Data')
+            else:
+                plt.scatter(time, data.values[iii, :]*scale_factor/dataN, color='C0')
     plt.plot(time, mu, color='r', label='MCMC')
     plt.legend()
     plt.xlabel('Time [$\mu$s]', fontsize=15)
