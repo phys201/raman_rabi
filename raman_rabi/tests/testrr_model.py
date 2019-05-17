@@ -341,6 +341,135 @@ class TestRR_MODEL(TestCase):
         correct_value = -63150.8915991
         self.assertAlmostEqual(decay_loglikelihood_result,correct_value)
 
+    def test_sampler_to_dataframe(self):
+        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
+        time_min = 0
+        time_max = 40
+        fromcsv = True
+        dataN = 10
+        runN = 1200
+        gaus_var = 1e-3
+        nwalkers = 12
+        nsteps = 1
+        priors = [  ['uniform',0, +np.inf], # BG
+                    ['uniform',0,+np.inf], # Ap
+                    ['uniform',0.0,+np.inf], # Gammap
+                    ['uniform',0,+np.inf], # Ah
+                    ['uniform',-np.inf, 0],# Omegah
+                    ['uniform',0.0,+np.inf]] # Gammadephp
+
+        np.random.seed(0)
+        results = rr_model.walkers_sampler(RRData,theta,time_min,time_max,fromcsv,
+                                                     dataN,runN,gaus_var,nwalkers,nsteps,
+                                                     priors)
+
+        test_dataframe = rr_model.sampler_to_dataframe(results)
+        first_walker_step = np.array([test_dataframe['BG'].values[0],
+                                      test_dataframe['Ap'].values[0],
+                                      test_dataframe['Gp'].values[0],
+                                      test_dataframe['Ah'].values[0],
+                                      test_dataframe['Oh'].values[0],
+                                      test_dataframe['Gd'].values[0]])
+        correct_values =  np.array([6.10172910902, 16.6885526756, 0.0165435118497,
+                                    5.02093439994, -0.356432244398, 0.115447488024])
+        for pair in zip(first_walker_step,correct_values):
+            self.assertTrue(np.isclose(pair[0], pair[1],atol=0.01,rtol=0.01)) 
+
+    def test_plot_params_burnin(self):
+        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
+        time_min = 0
+        time_max = 40
+        fromcsv = True
+        dataN = 10
+        runN = 1200
+        gaus_var = 1e-3
+        nwalkers = 12
+        nsteps = 1
+        priors = [  ['uniform',0, +np.inf], # BG
+                    ['uniform',0,+np.inf], # Ap
+                    ['uniform',0.0,+np.inf], # Gammap
+                    ['uniform',0,+np.inf], # Ah
+                    ['uniform',-np.inf, 0],# Omegah
+                    ['uniform',0.0,+np.inf]] # Gammadephp
+
+        np.random.seed(0)
+        results = rr_model.walkers_sampler(RRData,theta,time_min,time_max,fromcsv,
+                                                     dataN,runN,gaus_var,nwalkers,nsteps,
+                                                     priors)
+        rr_model.plot_params_burnin(results,nwalkers)
+
+    def test_pairplot_oscillation_params(self):
+        theta = np.array([6.10, 16.6881, 1/63.8806, 5.01886, -np.pi/8.77273, 1/8.5871])
+        time_min = 0
+        time_max = 40
+        fromcsv = True
+        dataN = 10
+        runN = 1200
+        gaus_var = 1e-3
+        nwalkers = 12
+        nsteps = 1
+        priors = [  ['uniform',0, +np.inf], # BG
+                    ['uniform',0,+np.inf], # Ap
+                    ['uniform',0.0,+np.inf], # Gammap
+                    ['uniform',0,+np.inf], # Ah
+                    ['uniform',-np.inf, 0],# Omegah
+                    ['uniform',0.0,+np.inf]] # Gammadephp
+
+        np.random.seed(0)
+        results = rr_model.walkers_sampler(RRData,theta,time_min,time_max,fromcsv,
+                                                     dataN,runN,gaus_var,nwalkers,nsteps,
+                                                     priors)
+        dataframe = rr_model.sampler_to_dataframe(results)
+        rr_model.pairplot_oscillation_params(dataframe)
+
+    #def test_plot_fit_and_data(self):
+    #    data_length = len(RRData.get_df())
+
+    #    np.random.seed(0)
+    #    skew_values = np.random.rand(data_length)
+    #    theta = np.concatenate( (np.array([6.10, 16.6881,
+    #                                    1/63.8806, 5.01886,
+    #                                    -np.pi/8.77273, 1/8.5871]),
+    #                                skew_values), axis=0)
+    #    # list of priors
+    #    param_priors = [ ['uniform',0.,+np.inf], # BG
+    #                         ['uniform',0.,+np.inf], # Ap
+    #                         ['uniform',0.,+np.inf], # Gammap
+    #                         ['uniform',0.,+np.inf], # Ah
+    #                         ['uniform',0.,+np.inf], # Omegah
+    #                         ['uniform',0.,+np.inf] ] # Gammadeph
+    #    laserskew_priors = [['uniform',0.,1.]]*data_length
+    #    priors = param_priors + laserskew_priors
+
+
+    #    time_min = 0
+    #    time_max = 40
+    #    fromcsv = True
+    #    guesses = theta
+    #    numdim = len(guesses)
+    #    numwalkers = 54
+    #    numsteps = 161
+    #    dataN = 10 # so this is mN = +1
+    #    runN = 1200 # so this is mN = +1
+    #    gaus_var = 1e-3
+    #    laserskewed = True
+    #    np.random.seed(0)
+    #    test_samples = rr_model.walkers_sampler(RRData, guesses,
+    #                                              0, 40, True, dataN, runN,
+    #                                              gaus_var, nwalkers=numwalkers,
+    #                                              nsteps=numsteps,
+    #                                              withlaserskew=laserskewed,
+    #                                              priors=priors)
+
+    #    test_dataframe = rr_model.sampler_to_dataframe(test_samples,withlaserskew=True)[0]
+    #    values = np.array([test_dataframe['BG'].values[0],test_dataframe['Ap'].values[0],
+    #                       test_dataframe['Gp'].values[0],test_dataframe['Ah'].values[0],
+    #                       test_dataframe['Oh'].values[0],test_dataframe['Gd'].values[0]])
+    #    rr_model.plot_fit_and_data(values,test_samples.chain,RRData,numsteps,time_min,time_max,
+    #                       dataN,fromcsv=True)
+
+        
+
     def test_parallel_tempered_walkers_decay(self):
         theta = [0.015,5.0,0.015,6.0,0.025]
         time_min = 0

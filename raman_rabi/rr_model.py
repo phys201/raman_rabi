@@ -423,10 +423,10 @@ def sampler_to_dataframe(sampler, withlaserskew = False, burn_in_time = 0):
         withlaserskew (optional): marks whether to use laserskew functions or not (bool)
         burn_in_time (optional): the number of samples it took to burn in (int)
 
-    Returns:(if withlaserskew = True)
+    Returns:(if withlaserskew = False)
        df: the pandas data frame object which now contains the samples taken by nwalkers
            walkers over nsteps steps
-    Returns:(if withlaserskew = False)
+    Returns:(if withlaserskew = True)
        df, laserskew_samples: the pandas data frame object with laserskew
     """
     panel = pd.Panel(sampler.chain[:,burn_in_time:,:]).transpose(2,0,1) # transpose permutes indices of the panel
